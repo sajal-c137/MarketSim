@@ -1,0 +1,8 @@
+{
+    "name": "marketsim",
+    "version": "0.1.0",
+    "dependencies": [
+        "cppzmq",
+        "protobuf"
+    ]
+}
