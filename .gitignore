@@ -30,3 +30,6 @@ cmake_install.cmake
 
 # Logs
 *.log
+
+# Ignore service ideas files
+**/IDEAS.md
