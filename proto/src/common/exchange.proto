@@ -1,0 +1,175 @@
+syntax = "proto3";
+
+package marketsim.exchange;
+
+// ============================================================================
+// Order Messages (Write Operations)
+// ============================================================================
+
+// Order side enumeration
+enum OrderSide {
+  ORDER_SIDE_UNSPECIFIED = 0;
+  BUY = 1;
+  SELL = 2;
+}
+
+// Order type enumeration
+enum OrderType {
+  ORDER_TYPE_UNSPECIFIED = 0;
+  LIMIT = 1;
+  MARKET = 2;
+}
+
+// Order status enumeration
+enum OrderStatus {
+  ORDER_STATUS_UNSPECIFIED = 0;
+  PENDING = 1;
+  ACCEPTED = 2;
+  PARTIALLY_FILLED = 3;
+  FILLED = 4;
+  CANCELLED = 5;
+  REJECTED = 6;
+}
+
+// New order submission
+message Order {
+  string order_id = 1;           // Unique order identifier (client-generated)
+  string symbol = 2;             // Trading instrument symbol (e.g., "AAPL", "BTC-USD")
+  OrderSide side = 3;            // Buy or Sell
+  OrderType type = 4;            // Limit or Market
+  double price = 5;              // Limit price (ignored for market orders)
+  double quantity = 6;           // Order size/volume
+  int64 timestamp = 7;           // Order submission timestamp (milliseconds since epoch)
+  string client_id = 8;          // Client/trader identifier
+}
+
+// Order acknowledgement from exchange
+message OrderAck {
+  string order_id = 1;
+  OrderStatus status = 2;
+  string message = 3;            // Status message (e.g., error details)
+  int64 timestamp = 4;
+}
+
+// Order cancellation request
+message CancelOrder {
+  string order_id = 1;
+  string symbol = 2;
+  string client_id = 3;
+  int64 timestamp = 4;
+}
+
+// ============================================================================
+// Market Data Messages (Read Operations)
+// ============================================================================
+
+// OHLCV (Candlestick) data
+message OHLCV {
+  string symbol = 1;
+  int64 timestamp = 2;           // Bar opening time
+  double open = 3;
+  double high = 4;
+  double low = 5;
+  double close = 6;
+  double volume = 7;
+  int32 interval_seconds = 8;    // Bar interval (e.g., 60 for 1-minute bars)
+}
+
+// Order book level (price level)
+message OrderBookLevel {
+  double price = 1;
+  double quantity = 2;
+  int32 order_count = 3;         // Number of orders at this level
+}
+
+// Full order book snapshot
+message OrderBook {
+  string symbol = 1;
+  int64 timestamp = 2;
+  repeated OrderBookLevel bids = 3;  // Buy side (descending order)
+  repeated OrderBookLevel asks = 4;  // Sell side (ascending order)
+  int32 depth = 5;                   // Number of levels per side
+}
+
+// Trade execution notification
+message Trade {
+  string trade_id = 1;
+  string symbol = 2;
+  double price = 3;
+  double quantity = 4;
+  int64 timestamp = 5;
+  OrderSide aggressor_side = 6;  // Side of the aggressive order (market taker)
+  string buyer_order_id = 7;
+  string seller_order_id = 8;
+}
+
+// Best bid/offer (Level 1 quote)
+message Quote {
+  string symbol = 1;
+  int64 timestamp = 2;
+  double bid_price = 3;
+  double bid_quantity = 4;
+  double ask_price = 5;
+  double ask_quantity = 6;
+  double spread = 7;             // ask_price - bid_price
+}
+
+// Market statistics
+message MarketStats {
+  string symbol = 1;
+  int64 timestamp = 2;
+  double last_price = 3;
+  double volume_24h = 4;
+  double high_24h = 5;
+  double low_24h = 6;
+  double price_change_24h = 7;
+  double price_change_pct_24h = 8;
+}
+
+// ============================================================================
+// Subscription/Control Messages
+// ============================================================================
+
+// Market data subscription request
+message Subscribe {
+  string symbol = 1;
+  repeated string data_types = 2;  // e.g., ["orderbook", "trades", "ohlcv"]
+  string client_id = 3;
+}
+
+// Unsubscribe request
+message Unsubscribe {
+  string symbol = 1;
+  string client_id = 2;
+}
+
+// ============================================================================
+// Wrapper Messages (for multiplexing over single channel)
+// ============================================================================
+
+// Market data feed (from exchange to subscribers)
+message MarketDataMessage {
+  oneof data {
+    OHLCV ohlcv = 1;
+    OrderBook order_book = 2;
+    Trade trade = 3;
+    Quote quote = 4;
+    MarketStats stats = 5;
+  }
+}
+
+// Order message wrapper (to exchange)
+message OrderMessage {
+  oneof message {
+    Order new_order = 1;
+    CancelOrder cancel_order = 2;
+  }
+}
+
+// Exchange response wrapper (from exchange)
+message ExchangeResponse {
+  oneof response {
+    OrderAck order_ack = 1;
+    Trade trade = 2;
+  }
+}
