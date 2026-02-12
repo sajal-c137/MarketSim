@@ -9,12 +9,25 @@
 #include <thread>
 #include <atomic>
 #include <functional>
+#include <fstream>
 
 namespace marketsim::monitor {
+
+enum class OutputMode {
+    CONSOLE,        // Print to console (default)
+    SUMMARY,        // Compact summary only
+    SILENT,         // No console output
+    CHANGES_ONLY    // Only show changes
+};
 
 class StatusMonitor {
 public:
     static StatusMonitor& instance();
+    
+    // Configuration
+    void set_output_mode(OutputMode mode);
+    void set_console_verbosity(int level); // 0=minimal, 1=normal, 2=verbose
+    void enable_file_logging(const std::string& filename);
     
     // Thread monitoring
     void register_thread(std::thread::id thread_id, const std::string& name);
@@ -48,8 +61,10 @@ public:
     size_t total_messages_sent() const;
     size_t total_messages_received() const;
     
-    // Print status to console
+    // Output methods
     void print_status() const;
+    void print_summary() const;  // Compact one-line summary
+    void print_changes() const;  // Only show changes
     
 private:
     StatusMonitor();
@@ -61,18 +76,33 @@ private:
     void monitoring_loop();
     void check_thread_health();
     void check_socket_health();
+    void log_to_file(const std::string& message);
     
     mutable std::mutex threads_mutex_;
     mutable std::mutex sockets_mutex_;
+    mutable std::mutex file_mutex_;
     
     std::unordered_map<std::thread::id, ThreadInfo> threads_;
     std::unordered_map<std::string, SocketInfo> sockets_;
+    
+    // Previous state for change detection
+    mutable std::unordered_map<std::thread::id, ThreadState> prev_thread_states_;
+    mutable std::unordered_map<std::string, SocketState> prev_socket_states_;
+    mutable size_t prev_total_sent_;
+    mutable size_t prev_total_received_;
     
     std::atomic<bool> monitoring_running_;
     std::unique_ptr<std::thread> monitoring_thread_;
     std::chrono::milliseconds monitoring_interval_;
     
     std::function<void(const std::vector<ThreadInfo>&, const std::vector<SocketInfo>&)> status_callback_;
+    
+    // Configuration
+    OutputMode output_mode_;
+    int console_verbosity_;
+    std::unique_ptr<std::ofstream> log_file_;
+    mutable size_t report_count_;
 };
 
 }
+

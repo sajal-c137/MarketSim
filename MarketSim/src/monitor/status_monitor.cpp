@@ -15,6 +15,11 @@ StatusMonitor::StatusMonitor()
     : monitoring_running_(false)
     , monitoring_interval_(std::chrono::seconds(5))
     , status_callback_(nullptr)
+    , output_mode_(OutputMode::CONSOLE)
+    , console_verbosity_(1)
+    , prev_total_sent_(0)
+    , prev_total_received_(0)
+    , report_count_(0)
 {}
 
 StatusMonitor::~StatusMonitor() {
@@ -333,4 +338,112 @@ void StatusMonitor::print_status() const {
     std::cout << std::string(80, '=') << std::endl << std::endl;
 }
 
+// Configuration methods
+void StatusMonitor::set_output_mode(OutputMode mode) {
+    output_mode_ = mode;
 }
+
+void StatusMonitor::set_console_verbosity(int level) {
+    console_verbosity_ = level;
+}
+
+void StatusMonitor::enable_file_logging(const std::string& filename) {
+    std::lock_guard<std::mutex> lock(file_mutex_);
+    log_file_ = std::make_unique<std::ofstream>(filename, std::ios::app);
+    if (log_file_->is_open()) {
+        auto now = std::chrono::system_clock::now();
+        auto time_t_now = std::chrono::system_clock::to_time_t(now);
+        
+        *log_file_ << std::put_time(std::localtime(&time_t_now), "%Y-%m-%d %H:%M:%S");
+        *log_file_ << " [System] Logging started to " << filename << std::endl;
+    }
+}
+
+void StatusMonitor::log_to_file(const std::string& message) {
+    std::lock_guard<std::mutex> lock(file_mutex_);
+    if (log_file_ && log_file_->is_open()) {
+        auto now = std::chrono::system_clock::now();
+        auto time_t_now = std::chrono::system_clock::to_time_t(now);
+        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            now.time_since_epoch()
+        ) % 1000;
+        
+        *log_file_ << std::put_time(std::localtime(&time_t_now), "%Y-%m-%d %H:%M:%S");
+        *log_file_ << "." << std::setfill('0') << std::setw(3) << ms.count();
+        *log_file_ << " " << message << std::endl;
+        log_file_->flush();
+    }
+}
+
+void StatusMonitor::print_summary() const {
+    auto threads = get_thread_status();
+    auto sockets = get_socket_status();
+    
+    size_t running_threads = std::count_if(threads.begin(), threads.end(),
+        [](const ThreadInfo& t) { return t.state == ThreadState::RUNNING; });
+    
+    size_t connected_sockets = std::count_if(sockets.begin(), sockets.end(),
+        [](const SocketInfo& s) { 
+            return s.state == SocketState::CONNECTED || s.state == SocketState::LISTENING; 
+        });
+    
+    std::ostringstream oss;
+    oss << "[Monitor #" << report_count_++ << "] "
+        << "Threads: " << running_threads << "/" << threads.size() << " active | "
+        << "Sockets: " << connected_sockets << "/" << sockets.size() << " connected | "
+        << "Msgs: ?" << total_messages_sent() << " ?" << total_messages_received();
+    
+    std::string summary = oss.str();
+    std::cout << summary << std::endl;
+    const_cast<StatusMonitor*>(this)->log_to_file(summary);
+}
+
+void StatusMonitor::print_changes() const {
+    bool has_changes = false;
+    std::ostringstream changes;
+    
+    // Check thread state changes
+    {
+        std::lock_guard<std::mutex> lock(threads_mutex_);
+        for (const auto& [id, info] : threads_) {
+            auto prev_it = prev_thread_states_.find(id);
+            if (prev_it == prev_thread_states_.end() || prev_it->second != info.state) {
+                changes << "[" << info.name << "] state changed: " 
+                        << to_string(info.state) << "\n";
+                has_changes = true;
+            }
+        }
+    }
+    
+    // Check socket state changes
+    {
+        std::lock_guard<std::mutex> lock(sockets_mutex_);
+        for (const auto& [name, info] : sockets_) {
+            auto prev_it = prev_socket_states_.find(name);
+            if (prev_it == prev_socket_states_.end() || prev_it->second != info.state) {
+                changes << "[" << name << "] state: " 
+                        << to_string(info.state) << "\n";
+                has_changes = true;
+            }
+        }
+    }
+    
+    // Check message count changes
+    size_t current_sent = total_messages_sent();
+    size_t current_received = total_messages_received();
+    
+    if (current_sent != prev_total_sent_ || current_received != prev_total_received_) {
+        changes << "[Traffic] Sent: +" << (current_sent - prev_total_sent_) 
+                << " Recv: +" << (current_received - prev_total_received_) << "\n";
+        has_changes = true;
+    }
+    
+    if (has_changes) {
+        std::string output = changes.str();
+        std::cout << output;
+        const_cast<StatusMonitor*>(this)->log_to_file(output);
+    }
+}
+
+}
+

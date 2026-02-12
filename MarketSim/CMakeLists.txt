@@ -78,6 +78,12 @@ if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET test_status_monitor PROPERTY CXX_STANDARD 20)
 endif()
 
+add_executable(test_logging "test_logging.cpp")
+target_link_libraries(test_logging PRIVATE monitor_lib)
+if (CMAKE_VERSION VERSION_GREATER 3.12)
+  set_property(TARGET test_logging PROPERTY CXX_STANDARD 20)
+endif()
+
 add_executable(test_io_handler "test_io_handler.cpp")
 target_link_libraries(test_io_handler PRIVATE io_handler_lib monitor_lib)
 target_include_directories(test_io_handler PRIVATE "${PROTO_GEN_DIR}")
