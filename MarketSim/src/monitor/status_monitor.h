@@ -61,6 +61,14 @@ public:
     size_t total_messages_sent() const;
     size_t total_messages_received() const;
     
+    // Health checks
+    std::vector<std::string> get_dead_threads() const;
+    std::vector<std::string> get_stuck_threads(int idle_threshold_seconds = 30) const;
+    std::vector<std::string> get_disconnected_sockets() const;
+    std::vector<std::string> get_error_sockets() const;
+    bool has_dead_components() const;
+
+    
     // Output methods
     void print_status() const;
     void print_summary() const;  // Compact one-line summary

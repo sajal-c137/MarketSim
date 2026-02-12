@@ -56,6 +56,13 @@ add_library(io_handler_lib STATIC
     "${PROTO_GEN_DIR}/exchange.pb.cc"
 )
 
+# Exchange library (Matching Engine)
+add_library(exchange_lib STATIC
+    "src/exchange/operations/order_book.cpp"
+    "src/exchange/operations/matching_engine.cpp"
+    "${PROTO_GEN_DIR}/exchange.pb.cc"
+)
+
 target_include_directories(io_handler_lib PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${PROTO_GEN_DIR}"
@@ -69,6 +76,21 @@ target_link_libraries(io_handler_lib PUBLIC
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET io_handler_lib PROPERTY CXX_STANDARD 20)
+endif()
+
+# Exchange library includes
+target_include_directories(exchange_lib PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    "${PROTO_GEN_DIR}"
+)
+
+target_link_libraries(exchange_lib PUBLIC
+    monitor_lib
+    protobuf::libprotobuf
+)
+
+if (CMAKE_VERSION VERSION_GREATER 3.12)
+  set_property(TARGET exchange_lib PROPERTY CXX_STANDARD 20)
 endif()
 
 # Test executables
@@ -89,6 +111,13 @@ target_link_libraries(test_io_handler PRIVATE io_handler_lib monitor_lib)
 target_include_directories(test_io_handler PRIVATE "${PROTO_GEN_DIR}")
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET test_io_handler PROPERTY CXX_STANDARD 20)
+endif()
+
+add_executable(test_matching_engine "test_matching_engine.cpp")
+target_link_libraries(test_matching_engine PRIVATE exchange_lib monitor_lib)
+target_include_directories(test_matching_engine PRIVATE "${PROTO_GEN_DIR}")
+if (CMAKE_VERSION VERSION_GREATER 3.12)
+  set_property(TARGET test_matching_engine PROPERTY CXX_STANDARD 20)
 endif()
 
 # TODO: Add tests and install targets if needed.

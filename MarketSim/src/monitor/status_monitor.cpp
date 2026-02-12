@@ -218,10 +218,79 @@ void StatusMonitor::check_socket_health() {
         );
         
         if (info.state == SocketState::CONNECTED && idle_duration.count() > 60) {
-            // Socket might be stale
+            // Socket might be stale - log warning
+            std::ostringstream oss;
+            oss << "[WARNING] Socket " << name << " idle for " << idle_duration.count() << " seconds";
+            log_to_file(oss.str());
         }
     }
 }
+
+// Health check methods
+std::vector<std::string> StatusMonitor::get_dead_threads() const {
+    std::vector<std::string> dead_threads;
+    std::lock_guard<std::mutex> lock(threads_mutex_);
+    
+    for (const auto& [id, info] : threads_) {
+        if (info.state == ThreadState::TERMINATED || info.state == ThreadState::ERROR) {
+            dead_threads.push_back(info.name);
+        }
+    }
+    
+    return dead_threads;
+}
+
+std::vector<std::string> StatusMonitor::get_stuck_threads(int idle_threshold_seconds) const {
+    std::vector<std::string> stuck_threads;
+    std::lock_guard<std::mutex> lock(threads_mutex_);
+    auto now = std::chrono::system_clock::now();
+    
+    for (const auto& [id, info] : threads_) {
+        if (info.state == ThreadState::RUNNING) {
+            auto idle_duration = std::chrono::duration_cast<std::chrono::seconds>(
+                now - info.last_activity
+            );
+            
+            if (idle_duration.count() > idle_threshold_seconds) {
+                stuck_threads.push_back(info.name + " (idle " + std::to_string(idle_duration.count()) + "s)");
+            }
+        }
+    }
+    
+    return stuck_threads;
+}
+
+std::vector<std::string> StatusMonitor::get_disconnected_sockets() const {
+    std::vector<std::string> disconnected;
+    std::lock_guard<std::mutex> lock(sockets_mutex_);
+    
+    for (const auto& [name, info] : sockets_) {
+        if (info.state == SocketState::DISCONNECTED) {
+            disconnected.push_back(name);
+        }
+    }
+    
+    return disconnected;
+}
+
+std::vector<std::string> StatusMonitor::get_error_sockets() const {
+    std::vector<std::string> error_sockets;
+    std::lock_guard<std::mutex> lock(sockets_mutex_);
+    
+    for (const auto& [name, info] : sockets_) {
+        if (info.state == SocketState::ERROR || !info.last_error.empty()) {
+            error_sockets.push_back(name + ": " + info.last_error);
+        }
+    }
+    
+    return error_sockets;
+}
+
+bool StatusMonitor::has_dead_components() const {
+    return !get_dead_threads().empty() || 
+           !get_error_sockets().empty();
+}
+
 
 // Statistics
 size_t StatusMonitor::active_thread_count() const {
