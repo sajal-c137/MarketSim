@@ -1,16 +1,21 @@
 # Exchange Models
 
-Internal data models and domain objects.
+Internal data models and domain objects for the exchange.
 
 ## Contents
 
-- **Order Model**: Internal order representation (optimized for performance)
-- **Trade Model**: Internal trade record
-- **Order Book Level**: Internal representation of price levels
-- **Market Stats**: Internal market statistics
+- **`order_model.h`**: Order representation with status tracking
+- **`trade_model.h`**: Trade execution records
+- **`orderbook_level_model.h`**: Price level structures
+- **`orderbook_model.h`**: Complete order book with O(1) lookup
+- **`market_stats_model.h`**: Market statistics and OHLCV
+- **`price_cache.h`**: Thread-safe atomic price cache
 
 ## Design
 
-These are the internal C++ objects used by the exchange.
-Separate from protobuf messages for performance optimization.
-Memory-efficient, cache-friendly layouts.
+**Order Book**: Hash map per price level + FIFO deque for time priority
+- O(1) order lookup by (price, order_id)
+- Sparse representation (no gaps)
+- Partial fills stay at front of queue
+
+**Separation from Protobuf**: These are internal C++ structs optimized for performance. Mappers handle conversion at I/O boundaries.

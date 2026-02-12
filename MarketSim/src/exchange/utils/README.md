@@ -1,16 +1,13 @@
 # Exchange Utils
 
-Utility classes and helpers for the exchange service.
+Utility classes and helpers for the exchange.
 
 ## Contents
 
-- **Thread-Safe Queue**: Lock-free or mutex-based queue for inter-thread communication
-- **Thread Pool**: Optional thread pool for async operations
-- **Time Utilities**: High-resolution timestamp generation
-- **Serialization Utilities**: Efficient serialization helpers
-- **Logging Utilities**: Exchange-specific logging wrappers
+- **`time_utils.h/cpp`**: High-resolution timestamps and time formatting
+- **`thread_safe_queue.h`**: Thread-safe queue with blocking/non-blocking operations  
+- **`logging_utils.h/cpp`**: Simple structured logging with log levels
 
 ## Design
 
-Performance-critical utilities optimized for low latency.
-Reusable components shared across threads.
+Lightweight utilities with minimal dependencies. Header-only where possible for inlining.
