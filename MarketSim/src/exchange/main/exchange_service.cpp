@@ -3,13 +3,19 @@
 
 namespace marketsim::exchange::main {
 
+ExchangeService::ExchangeService(const config::ExchangeConfig& config)
+    : config_(config)
+    , running_(false)
+{
+}
+
 ExchangeService::ExchangeService(
     const std::string& order_port,
     const std::string& status_port)
-    : order_port_(order_port)
-    , status_port_(status_port)
-    , running_(false)
+    : running_(false)
 {
+    config_.order_port = order_port;
+    config_.status_port = status_port;
 }
 
 ExchangeService::~ExchangeService() {
@@ -19,7 +25,10 @@ ExchangeService::~ExchangeService() {
 ExchangeService::SymbolData& ExchangeService::get_or_create_symbol(const std::string& symbol) {
     auto it = symbols_.find(symbol);
     if (it == symbols_.end()) {
-        auto result = symbols_.emplace(symbol, std::make_unique<SymbolData>(symbol));
+        auto result = symbols_.emplace(
+            symbol,
+            std::make_unique<SymbolData>(symbol, config_.price_history_size)
+        );
         return *result.first->second;
     }
     return *it->second;
@@ -32,14 +41,15 @@ void ExchangeService::run() {
         io_handler::IOContext io_context(1);
         
         // Socket for receiving orders
-        io_handler::ZmqReplier order_replier(io_context, "Exchange_Orders", order_port_);
+        io_handler::ZmqReplier order_replier(io_context, "Exchange_Orders", config_.order_port);
         order_replier.bind();
-        std::cout << "[EXCHANGE] Order receiver: " << order_port_ << "\n";
+        std::cout << "[EXCHANGE] Order receiver: " << config_.order_port << "\n";
         
         // Socket for status queries
-        io_handler::ZmqReplier status_replier(io_context, "Exchange_Status", status_port_);
+        io_handler::ZmqReplier status_replier(io_context, "Exchange_Status", config_.status_port);
         status_replier.bind();
-        std::cout << "[EXCHANGE] Status endpoint: " << status_port_ << "\n";
+        std::cout << "[EXCHANGE] Status endpoint: " << config_.status_port << "\n";
+        std::cout << "[EXCHANGE] Price history size: " << config_.price_history_size << "\n";
         std::cout << "[EXCHANGE] Ready (silent mode - no logging)\n\n";
         
         running_ = true;
@@ -71,10 +81,8 @@ void ExchangeService::handle_order_request(io_handler::ZmqReplier& order_replier
         // Process order
         auto match_result = symbol_data.engine->match_order(order);
         
-        if (!match_result.trades.empty()) {
-            symbol_data.last_trade_price = match_result.execution_price;
-        }
-        
+        // No need to track last_trade_price separately - it's in the history now
+
         // Send acknowledgement
         OrderAck ack;
         ack.set_order_id(order.order_id());
@@ -104,7 +112,26 @@ void ExchangeService::handle_status_request(io_handler::ZmqReplier& status_repli
             resp.set_total_orders_received(symbol_data.order_count);
             resp.set_total_trades(symbol_data.engine->total_trades());
             resp.set_total_volume(symbol_data.engine->total_volume());
-            resp.set_last_trade_price(symbol_data.last_trade_price);
+            
+            // Set last trade price from history
+            data::PriceTick last_trade;
+            if (symbol_data.engine->get_last_trade_price(last_trade)) {
+                resp.set_last_trade_price(last_trade.price);
+                resp.set_last_trade_timestamp(last_trade.timestamp_ms);
+            } else {
+                resp.set_last_trade_price(0.0);
+                resp.set_last_trade_timestamp(0);
+            }
+            
+            // Set mid price from history
+            data::PriceTick last_mid;
+            if (symbol_data.engine->get_last_mid_price(last_mid)) {
+                resp.set_mid_price(last_mid.price);
+                resp.set_mid_price_timestamp(last_mid.timestamp_ms);
+            } else {
+                resp.set_mid_price(0.0);
+                resp.set_mid_price_timestamp(0);
+            }
             
             // Add last received order if available
             if (symbol_data.order_count > 0) {

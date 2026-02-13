@@ -134,9 +134,9 @@ exchange::StatusResponse response;
         );
     }
     
-    // Display orderbook snapshot - USE PROTOBUF DIRECTLY
+    // Display orderbook snapshot - PASS FULL STATUS RESPONSE
     if (response.has_current_orderbook()) {
-        ExchangeLogger::log_orderbook_pb(response.current_orderbook());
+        ExchangeLogger::log_orderbook_pb(response);
     }
 }
 

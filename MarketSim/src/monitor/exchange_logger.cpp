@@ -157,14 +157,55 @@ void ExchangeLogger::log_orderbook(
 }
 
 void ExchangeLogger::log_orderbook_pb(
-    const marketsim::exchange::OrderBook& pb_orderbook)
+    const marketsim::exchange::StatusResponse& status_response)
 {
     using namespace tabulate;
+    
+    const auto& pb_orderbook = status_response.current_orderbook();
     
     // Clear screen and move cursor to top-left for refresh effect
     clear_screen();
     
+    // Display header with symbol
     std::cout << "[ORDERBOOK] " << pb_orderbook.symbol() << " - Live Update\n";
+    
+    // Display price information at the top
+    std::cout << "\n";
+    std::cout << "???????????????????????????????????????????????????????????????\n";
+    std::cout << "?                     MARKET PRICES                           ?\n";
+    std::cout << "???????????????????????????????????????????????????????????????\n";
+    
+    // Last Traded Price
+    std::cout << "? Last Traded:  ";
+    if (status_response.last_trade_price() > 0) {
+        std::cout << "$" << std::fixed << std::setprecision(2) 
+                  << std::setw(10) << status_response.last_trade_price();
+    } else {
+        std::cout << std::setw(11) << "N/A";
+    }
+    std::cout << "                                   ?\n";
+    
+    // Mid Price
+    std::cout << "? Mid Price:    ";
+    if (status_response.mid_price() > 0) {
+        std::cout << "$" << std::fixed << std::setprecision(2) 
+                  << std::setw(10) << status_response.mid_price();
+    } else {
+        std::cout << std::setw(11) << "N/A";
+    }
+    std::cout << "                                   ?\n";
+    
+    // Spread (if both bid and ask exist)
+    double best_bid = pb_orderbook.bids_size() > 0 ? pb_orderbook.bids(0).price() : 0;
+    double best_ask = pb_orderbook.asks_size() > 0 ? pb_orderbook.asks(0).price() : 0;
+    if (best_bid > 0 && best_ask > 0) {
+        double spread = best_ask - best_bid;
+        std::cout << "? Spread:       $" << std::fixed << std::setprecision(2) 
+                  << std::setw(10) << spread;
+        std::cout << "                                   ?\n";
+    }
+    
+    std::cout << "???????????????????????????????????????????????????????????????\n\n";
     
     Table table;
     

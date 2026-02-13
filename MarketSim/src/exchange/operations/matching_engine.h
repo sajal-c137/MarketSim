@@ -1,6 +1,7 @@
 #pragma once
 
 #include "order_book.h"
+#include "exchange/data/price_history.h"
 #include "exchange.pb.h"
 #include <vector>
 #include <string>
@@ -28,7 +29,7 @@ namespace marketsim::exchange::operations {
      */
     class MatchingEngine {
     public:
-        explicit MatchingEngine(const std::string& symbol);
+        explicit MatchingEngine(const std::string& symbol, size_t price_history_size = 100);
 
         // Submit order for matching
         MatchResult match_order(const marketsim::exchange::Order& order);
@@ -42,6 +43,18 @@ namespace marketsim::exchange::operations {
         // Statistics
         size_t total_trades() const { return trade_count_; }
         double total_volume() const { return total_volume_; }
+        
+        // Price tracking
+        const data::PriceHistory& get_trade_price_history() const { return trade_price_history_; }
+        const data::PriceHistory& get_mid_price_history() const { return mid_price_history_; }
+        
+        bool get_last_trade_price(data::PriceTick& tick) const {
+            return trade_price_history_.get_last(tick);
+        }
+        
+        bool get_last_mid_price(data::PriceTick& tick) const {
+            return mid_price_history_.get_last(tick);
+        }
 
     private:
         struct TradeExecutionContext {
@@ -58,11 +71,18 @@ namespace marketsim::exchange::operations {
 
         // Generate unique trade ID
         std::string generate_trade_id();
+        
+        // Update mid price after order book changes
+        void update_mid_price();
 
         OrderBook order_book_;
         size_t trade_count_;
         double total_volume_;
         int64_t trade_id_counter_;
+        
+        // Price tracking
+        data::PriceHistory trade_price_history_;
+        data::PriceHistory mid_price_history_;
     };
 
 }

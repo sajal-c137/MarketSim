@@ -5,13 +5,15 @@
 
 namespace marketsim::exchange::operations {
 
-    MatchingEngine::MatchingEngine(const std::string& symbol)
-        : order_book_(symbol)
-        , trade_count_(0)
-        , total_volume_(0)
-        , trade_id_counter_(0)
-    {
-    }
+MatchingEngine::MatchingEngine(const std::string& symbol, size_t price_history_size)
+    : order_book_(symbol)
+    , trade_count_(0)
+    , total_volume_(0)
+    , trade_id_counter_(0)
+    , trade_price_history_(price_history_size)
+    , mid_price_history_(price_history_size)
+{
+}
 
     MatchResult MatchingEngine::match_order(const marketsim::exchange::Order& order) {
         MatchResult result;
@@ -78,6 +80,9 @@ namespace marketsim::exchange::operations {
         // Update statistics
         trade_count_ += result.trades.size();
         total_volume_ += result.executed_quantity;
+        
+        // Update mid price after order book changes
+        update_mid_price();
 
         result.success = true;
         return result;
@@ -145,6 +150,10 @@ namespace marketsim::exchange::operations {
                 trade.set_buyer_order_id(buy_order.order_id());
                 trade.set_seller_order_id(sell_order.order_id);
                 ctx.trades.push_back(trade);
+
+                // Record trade price in history
+                int64_t now = data::PriceTick::now_ms();
+                trade_price_history_.add(best_ask_price, now);
 
                 // Update filled quantity
                 sell_order.filled_quantity += fill_qty;
@@ -220,6 +229,10 @@ namespace marketsim::exchange::operations {
                 trade.set_seller_order_id(sell_order.order_id());
                 ctx.trades.push_back(trade);
 
+                // Record trade price in history
+                int64_t now = data::PriceTick::now_ms();
+                trade_price_history_.add(best_bid_price, now);
+
                 // Update filled quantity
                 buy_order.filled_quantity += fill_qty;
                 ctx.remaining_quantity -= fill_qty;
@@ -250,5 +263,30 @@ namespace marketsim::exchange::operations {
         oss << "TRD_" << std::setfill('0') << std::setw(10) << (++trade_id_counter_);
         return oss.str();
     }
+    
+    void MatchingEngine::update_mid_price() {
+        double best_bid_price = 0, best_bid_qty = 0;
+        double best_ask_price = 0, best_ask_qty = 0;
+        
+        bool has_bid = order_book_.get_best_bid(best_bid_price, best_bid_qty);
+        bool has_ask = order_book_.get_best_ask(best_ask_price, best_ask_qty);
+        
+        if (has_bid && has_ask) {
+            // Both sides exist - calculate mid price
+            double mid_price = (best_bid_price + best_ask_price) / 2.0;
+            int64_t now = data::PriceTick::now_ms();
+            mid_price_history_.add(mid_price, now);
+        } else if (has_bid) {
+            // Only bid side - use bid as mid
+            int64_t now = data::PriceTick::now_ms();
+            mid_price_history_.add(best_bid_price, now);
+        } else if (has_ask) {
+            // Only ask side - use ask as mid
+            int64_t now = data::PriceTick::now_ms();
+            mid_price_history_.add(best_ask_price, now);
+        }
+        // If neither exists, don't add anything
+    }
 
 } // namespace marketsim::exchange::operations
+

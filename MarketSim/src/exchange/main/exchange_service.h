@@ -1,6 +1,7 @@
 #pragma once
 
 #include "exchange/operations/matching_engine.h"
+#include "exchange/config/exchange_config.h"
 #include "io_handler/io_context.h"
 #include "io_handler/zmq_replier.h"
 #include "exchange.pb.h"
@@ -19,13 +20,16 @@ namespace marketsim::exchange::main {
 class ExchangeService {
 public:
     /**
-     * @brief Construct Exchange service
-     * @param order_port Port for receiving orders (e.g., "tcp://*:5555")
-     * @param status_port Port for status queries (e.g., "tcp://*:5557")
+     * @brief Construct Exchange service with config
+     */
+    explicit ExchangeService(const config::ExchangeConfig& config = config::ExchangeConfig());
+    
+    /**
+     * @brief Construct Exchange service with ports (legacy)
      */
     ExchangeService(
-        const std::string& order_port = "tcp://*:5555",
-        const std::string& status_port = "tcp://*:5557"
+        const std::string& order_port,
+        const std::string& status_port
     );
     
     ~ExchangeService();
@@ -45,13 +49,11 @@ private:
     struct SymbolData {
         std::unique_ptr<operations::MatchingEngine> engine;
         int order_count;
-        double last_trade_price;
         Order last_received_order;
         
-        SymbolData(const std::string& symbol)
-            : engine(std::make_unique<operations::MatchingEngine>(symbol))
+        SymbolData(const std::string& symbol, size_t price_history_size)
+            : engine(std::make_unique<operations::MatchingEngine>(symbol, price_history_size))
             , order_count(0)
-            , last_trade_price(0.0)
         {}
     };
     
@@ -61,8 +63,7 @@ private:
     
     void handle_status_request(io_handler::ZmqReplier& status_replier);
     
-    std::string order_port_;
-    std::string status_port_;
+    config::ExchangeConfig config_;
     bool running_;
     
     // Map of symbol -> matching engine and data

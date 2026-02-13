@@ -45,7 +45,7 @@ public:
     
     // Log orderbook from protobuf (for monitor display)
     static void log_orderbook_pb(
-        const marketsim::exchange::OrderBook& pb_orderbook
+        const marketsim::exchange::StatusResponse& status_response
     );
     
     // Print header on startup

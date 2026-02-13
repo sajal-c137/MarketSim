@@ -162,6 +162,9 @@ message StatusResponse {
   OrderBook current_orderbook = 5;
   Order last_received_order = 6;
   int64 timestamp = 7;
+  double mid_price = 8;  // Current mid price (best_bid + best_ask) / 2
+  int64 last_trade_timestamp = 9;  // Timestamp of last trade
+  int64 mid_price_timestamp = 10;  // Timestamp of mid price
 }
 
 // ============================================================================
