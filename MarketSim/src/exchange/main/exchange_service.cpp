@@ -16,48 +16,37 @@ ExchangeService::~ExchangeService() {
     stop();
 }
 
+ExchangeService::SymbolData& ExchangeService::get_or_create_symbol(const std::string& symbol) {
+    auto it = symbols_.find(symbol);
+    if (it == symbols_.end()) {
+        auto result = symbols_.emplace(symbol, std::make_unique<SymbolData>(symbol));
+        return *result.first->second;
+    }
+    return *it->second;
+}
+
 void ExchangeService::run() {
     std::cout << "[EXCHANGE] Starting...\n";
     
     try {
         io_handler::IOContext io_context(1);
-        operations::MatchingEngine matching_engine("AAPL");
         
-        // Socket for receiving orders from TrafficGenerator
+        // Socket for receiving orders
         io_handler::ZmqReplier order_replier(io_context, "Exchange_Orders", order_port_);
         order_replier.bind();
         std::cout << "[EXCHANGE] Order receiver: " << order_port_ << "\n";
         
-        // Socket for status queries from Monitor
+        // Socket for status queries
         io_handler::ZmqReplier status_replier(io_context, "Exchange_Status", status_port_);
         status_replier.bind();
         std::cout << "[EXCHANGE] Status endpoint: " << status_port_ << "\n";
         std::cout << "[EXCHANGE] Ready (silent mode - no logging)\n\n";
         
-        int order_count = 0;
-        double last_trade_price = 0.0;
-        Order last_received_order;
-        
         running_ = true;
         
         while (running_) {
-            // Handle order requests
-            handle_order_request(
-                order_replier,
-                matching_engine,
-                order_count,
-                last_trade_price,
-                last_received_order
-            );
-            
-            // Handle status requests from Monitor
-            handle_status_request(
-                status_replier,
-                matching_engine,
-                order_count,
-                last_trade_price,
-                last_received_order
-            );
+            handle_order_request(order_replier);
+            handle_status_request(status_replier);
         }
         
     } catch (const std::exception& e) {
@@ -70,23 +59,20 @@ void ExchangeService::stop() {
     running_ = false;
 }
 
-void ExchangeService::handle_order_request(
-    io_handler::ZmqReplier& order_replier,
-    operations::MatchingEngine& matching_engine,
-    int& order_count,
-    double& last_trade_price,
-    Order& last_received_order)
-{
+void ExchangeService::handle_order_request(io_handler::ZmqReplier& order_replier) {
     Order order;
     if (order_replier.receive_request(order, 10)) {
-        order_count++;
-        last_received_order = order;
+        // Get or create symbol data
+        auto& symbol_data = get_or_create_symbol(order.symbol());
+        
+        symbol_data.order_count++;
+        symbol_data.last_received_order = order;
         
         // Process order
-        auto match_result = matching_engine.match_order(order);
+        auto match_result = symbol_data.engine->match_order(order);
         
         if (!match_result.trades.empty()) {
-            last_trade_price = match_result.execution_price;
+            symbol_data.last_trade_price = match_result.execution_price;
         }
         
         // Send acknowledgement
@@ -102,51 +88,63 @@ void ExchangeService::handle_order_request(
     }
 }
 
-void ExchangeService::handle_status_request(
-    io_handler::ZmqReplier& status_replier,
-    const operations::MatchingEngine& matching_engine,
-    int order_count,
-    double last_trade_price,
-    const Order& last_received_order)
-{
+void ExchangeService::handle_status_request(io_handler::ZmqReplier& status_replier) {
     StatusRequest status_req;
     if (status_replier.receive_request(status_req, 10)) {
-        // Build status response
+        const std::string& requested_symbol = status_req.symbol();
+        
+        // Build status response - FILTER BY REQUESTED SYMBOL
         StatusResponse resp;
-        resp.set_total_orders_received(order_count);
-        resp.set_total_trades(matching_engine.total_trades());
-        resp.set_total_volume(matching_engine.total_volume());
-        resp.set_last_trade_price(last_trade_price);
         
-        // Add last received order if available
-        if (order_count > 0) {
-            auto* last_order = resp.mutable_last_received_order();
-            last_order->CopyFrom(last_received_order);
-        }
-        
-        // Add orderbook snapshot
-        const auto& order_book = matching_engine.get_order_book();
-        auto buy_levels = order_book.get_buy_side(5);
-        auto sell_levels = order_book.get_sell_side(5);
-        
-        auto* ob = resp.mutable_current_orderbook();
-        ob->set_symbol("AAPL");
-        ob->set_timestamp(0);
-        
-        // Add buy side
-        for (const auto& level : buy_levels) {
-            auto* bid = ob->add_bids();
-            bid->set_price(level.price);
-            bid->set_quantity(level.total_quantity());
-            bid->set_order_count(static_cast<int>(level.orders.size()));
-        }
-        
-        // Add sell side
-        for (const auto& level : sell_levels) {
-            auto* ask = ob->add_asks();
-            ask->set_price(level.price);
-            ask->set_quantity(level.total_quantity());
-            ask->set_order_count(static_cast<int>(level.orders.size()));
+        auto it = symbols_.find(requested_symbol);
+        if (it != symbols_.end()) {
+            // Symbol exists - return its data
+            const auto& symbol_data = *it->second;
+            
+            resp.set_total_orders_received(symbol_data.order_count);
+            resp.set_total_trades(symbol_data.engine->total_trades());
+            resp.set_total_volume(symbol_data.engine->total_volume());
+            resp.set_last_trade_price(symbol_data.last_trade_price);
+            
+            // Add last received order if available
+            if (symbol_data.order_count > 0) {
+                auto* last_order = resp.mutable_last_received_order();
+                last_order->CopyFrom(symbol_data.last_received_order);
+            }
+            
+            // Add orderbook snapshot for THIS SYMBOL ONLY
+            const auto& order_book = symbol_data.engine->get_order_book();
+            auto buy_levels = order_book.get_buy_side(5);
+            auto sell_levels = order_book.get_sell_side(5);
+            
+            auto* ob = resp.mutable_current_orderbook();
+            ob->set_symbol(requested_symbol);
+            ob->set_timestamp(0);
+            
+            // Add buy side
+            for (const auto& level : buy_levels) {
+                auto* bid = ob->add_bids();
+                bid->set_price(level.price);
+                bid->set_quantity(level.total_quantity());
+                bid->set_order_count(static_cast<int>(level.orders.size()));
+            }
+            
+            // Add sell side
+            for (const auto& level : sell_levels) {
+                auto* ask = ob->add_asks();
+                ask->set_price(level.price);
+                ask->set_quantity(level.total_quantity());
+                ask->set_order_count(static_cast<int>(level.orders.size()));
+            }
+        } else {
+            // Symbol doesn't exist yet - return empty response
+            resp.set_total_orders_received(0);
+            resp.set_total_trades(0);
+            resp.set_total_volume(0.0);
+            resp.set_last_trade_price(0.0);
+            
+            auto* ob = resp.mutable_current_orderbook();
+            ob->set_symbol(requested_symbol);
         }
         
         status_replier.send_response(resp);
@@ -154,3 +152,4 @@ void ExchangeService::handle_status_request(
 }
 
 } // namespace marketsim::exchange::main
+

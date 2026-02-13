@@ -5,11 +5,18 @@
 
 namespace marketsim::monitor {
 
-ExchangeMonitor::ExchangeMonitor(const std::string& status_endpoint)
-    : status_endpoint_(status_endpoint)
+ExchangeMonitor::ExchangeMonitor(const MonitorConfig& config)
+    : config_(config)
     , io_context_(1)
     , running_(false)
 {
+}
+
+ExchangeMonitor::ExchangeMonitor(const std::string& status_endpoint)
+    : io_context_(1)
+    , running_(false)
+{
+    config_.exchange_status_endpoint = status_endpoint;
 }
 
 ExchangeMonitor::~ExchangeMonitor() {
@@ -22,13 +29,16 @@ void ExchangeMonitor::start() {
     }
     
     std::cout << "[MONITOR] Starting Exchange Monitor...\n";
-    std::cout << "[MONITOR] Connecting to: " << status_endpoint_ << "\n\n";
+    std::cout << "[MONITOR] Config:\n";
+    std::cout << "[MONITOR]   Ticker: " << config_.ticker << "\n";
+    std::cout << "[MONITOR]   Endpoint: " << config_.exchange_status_endpoint << "\n";
+    std::cout << "[MONITOR]   Polling Interval: " << config_.polling_interval_ms << " ms\n\n";
     
     // Create status requester
     status_requester_ = std::make_unique<io_handler::ZmqRequester>(
         io_context_,
         "Monitor_Status",
-        status_endpoint_
+        config_.exchange_status_endpoint
     );
     
     try {
@@ -68,27 +78,30 @@ void ExchangeMonitor::wait() {
 }
 
 void ExchangeMonitor::run_monitor_loop() {
-    std::cout << "[MONITOR] Monitoring started. Querying Exchange every 100ms...\n\n";
+    std::cout << "[MONITOR] Monitoring started. Querying Exchange every " 
+              << config_.polling_interval_ms << "ms...\n\n";
     
     while (running_) {
         // Query Exchange for status and display
         query_and_display_status();
         
-        // Sleep before next query
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        // Sleep before next query (using config value)
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds(config_.polling_interval_ms)
+        );
     }
     
     std::cout << "[MONITOR] Monitoring stopped\n";
 }
 
 void ExchangeMonitor::query_and_display_status() {
-    // Create status request
-    exchange::StatusRequest request;
-    request.set_request_type("full");
-    request.set_symbol("AAPL");
+// Create status request
+exchange::StatusRequest request;
+request.set_request_type("full");
+request.set_symbol(config_.ticker);  // Use ticker from config
     
-    // Send request and receive response
-    exchange::StatusResponse response;
+// Send request and receive response
+exchange::StatusResponse response;
     
     try {
         if (!status_requester_->request(request, response)) {

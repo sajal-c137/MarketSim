@@ -221,4 +221,12 @@ if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET monitor_exchange PROPERTY CXX_STANDARD 20)
 endif()
 
+# Manual order client (interactive testing)
+add_executable(manual_order_client "test/manual_order_client.cpp")
+target_link_libraries(manual_order_client PRIVATE io_handler_lib proto_lib)
+target_include_directories(manual_order_client PRIVATE "${PROTO_GEN_DIR}")
+if (CMAKE_VERSION VERSION_GREATER 3.12)
+  set_property(TARGET manual_order_client PROPERTY CXX_STANDARD 20)
+endif()
+
 # TODO: Add tests and install targets if needed.

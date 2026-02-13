@@ -4,18 +4,28 @@
 
 using namespace marketsim::traffic_generator;
 
-int main() {
+int main(int argc, char* argv[]) {
     std::cout << "========================================\n";
     std::cout << "Traffic Generator Test\n";
     std::cout << "========================================\n\n";
     
+    // Parse ticker from command line
+    std::string ticker = "AAPL";  // Default
+    if (argc > 1) {
+        ticker = argv[1];
+        std::cout << "Ticker: " << ticker << " (from command line)\n";
+    } else {
+        std::cout << "Ticker: " << ticker << " (default)\n";
+        std::cout << "Usage: test_traffic_generator [ticker]\n";
+        std::cout << "Example: test_traffic_generator TSLA\n\n";
+    }
+    
     // Create traffic generator pointing to Exchange
-    // (Adjust endpoint as needed - Exchange should be listening here)
     main::TrafficGeneratorMain generator("tcp://localhost:5555");
     
     // Set up generation parameters
     models::GenerationParameters params;
-    params.symbol = "AAPL";
+    params.symbol = ticker;              // Use ticker from command line
     params.base_price = 100.0;           // Starting price
     params.price_rate = 10.0;            // +10 per second
     params.order_quantity = 1.0;         // 1 unit per order
@@ -23,6 +33,7 @@ int main() {
     params.duration_seconds = 10.0;      // Run for 10 seconds
     
     std::cout << "Configuration:\n";
+    std::cout << "  Symbol: " << params.symbol << "\n";
     std::cout << "  Formula: price = " << params.base_price 
               << " + " << params.price_rate << " * t\n";
     std::cout << "  Time range: t = 0 to " << params.duration_seconds << " seconds\n";
@@ -47,3 +58,4 @@ int main() {
     
     return 0;
 }
+

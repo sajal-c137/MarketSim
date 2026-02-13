@@ -1,5 +1,6 @@
 #pragma once
 
+#include "monitor_config.h"
 #include "io_handler/io_context.h"
 #include "io_handler/zmq_requester.h"
 #include "exchange/operations/matching_engine.h"
@@ -18,7 +19,13 @@ namespace marketsim::monitor {
 class ExchangeMonitor {
 public:
     /**
-     * @brief Construct monitor
+     * @brief Construct monitor with config
+     * @param config Monitor configuration
+     */
+    explicit ExchangeMonitor(const MonitorConfig& config);
+    
+    /**
+     * @brief Construct monitor with endpoint (uses default config)
      * @param status_endpoint Exchange status endpoint (e.g., "tcp://localhost:5557")
      */
     explicit ExchangeMonitor(const std::string& status_endpoint);
@@ -49,7 +56,7 @@ private:
     void run_monitor_loop();
     void query_and_display_status();
     
-    std::string status_endpoint_;
+    MonitorConfig config_;
     io_handler::IOContext io_context_;
     std::unique_ptr<io_handler::ZmqRequester> status_requester_;
     

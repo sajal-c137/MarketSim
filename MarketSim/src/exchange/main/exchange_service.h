@@ -6,6 +6,7 @@
 #include "exchange.pb.h"
 #include <memory>
 #include <string>
+#include <unordered_map>
 
 namespace marketsim::exchange::main {
 
@@ -13,6 +14,7 @@ namespace marketsim::exchange::main {
  * @brief Exchange Service - handles orders and status queries
  * 
  * All Exchange logic is here. Test files just instantiate and run.
+ * Supports multiple ticker symbols with separate matching engines.
  */
 class ExchangeService {
 public:
@@ -39,25 +41,32 @@ public:
     void stop();
     
 private:
-    void handle_order_request(
-        io_handler::ZmqReplier& order_replier,
-        operations::MatchingEngine& matching_engine,
-        int& order_count,
-        double& last_trade_price,
-        Order& last_received_order
-    );
+    // Order tracking per symbol
+    struct SymbolData {
+        std::unique_ptr<operations::MatchingEngine> engine;
+        int order_count;
+        double last_trade_price;
+        Order last_received_order;
+        
+        SymbolData(const std::string& symbol)
+            : engine(std::make_unique<operations::MatchingEngine>(symbol))
+            , order_count(0)
+            , last_trade_price(0.0)
+        {}
+    };
     
-    void handle_status_request(
-        io_handler::ZmqReplier& status_replier,
-        const operations::MatchingEngine& matching_engine,
-        int order_count,
-        double last_trade_price,
-        const Order& last_received_order
-    );
+    SymbolData& get_or_create_symbol(const std::string& symbol);
+    
+    void handle_order_request(io_handler::ZmqReplier& order_replier);
+    
+    void handle_status_request(io_handler::ZmqReplier& status_replier);
     
     std::string order_port_;
     std::string status_port_;
     bool running_;
+    
+    // Map of symbol -> matching engine and data
+    std::unordered_map<std::string, std::unique_ptr<SymbolData>> symbols_;
 };
 
 } // namespace marketsim::exchange::main
