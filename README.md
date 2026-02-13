@@ -1,5 +1,9 @@
 # MarketSim
 
+## ?? **FOR RECRUITERS: WORK IN PROGRESS**
+
+### Expected Completion: **February 24th**
+
 A high-performance market simulation system written in C++20.
 
 ## Architecture Principles
