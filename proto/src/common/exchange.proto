@@ -144,6 +144,27 @@ message Unsubscribe {
 }
 
 // ============================================================================
+// Status/Monitoring Messages
+// ============================================================================
+
+// Status request from Monitor
+message StatusRequest {
+  string request_type = 1;  // "full", "orderbook", "stats"
+  string symbol = 2;
+}
+
+// Status response to Monitor
+message StatusResponse {
+  int32 total_orders_received = 1;
+  int32 total_trades = 2;
+  double total_volume = 3;
+  double last_trade_price = 4;
+  OrderBook current_orderbook = 5;
+  Order last_received_order = 6;
+  int64 timestamp = 7;
+}
+
+// ============================================================================
 // Wrapper Messages (for multiplexing over single channel)
 // ============================================================================
 
