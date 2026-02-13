@@ -1,8 +1,8 @@
+# **FOR RECRUITERS: This Project is WIP**
+
+## Expected Completion: **February 20th**
+
 # MarketSim
-
-## ?? **FOR RECRUITERS: WORK IN PROGRESS**
-
-### Expected Completion: **February 24th**
 
 A high-performance market simulation system written in C++20.
 
@@ -17,16 +17,16 @@ A high-performance market simulation system written in C++20.
 
 ```
 MarketSim/
-??? MarketSim/
-    ??? src/
-    ?   ??? traffic_generator/    # Market data generation
-    ?   ??? exchange/             # Order matching and market operations
-    ?   ??? trader/               # Trading strategies and execution
-    ?   ??? monitor/              # System observability (logging, metrics, alerts)
-    ?   ??? io_handler/           # Unified I/O operations for market data
-    ?   ??? common/               # Shared types, interfaces, and utilities
-    ??? MarketSim.cpp             # Main entry point
-    ??? MarketSim.h               # Main header
+ MarketSim/
+     src/
+        traffic_generator/    # Market data generation
+        exchange/             # Order matching and market operations
+        trader/               # Trading strategies and execution
+        monitor/              # System observability (logging, metrics, alerts)
+        io_handler/           # Unified I/O operations for market data
+        common/               # Shared types, interfaces, and utilities
+        MarketSim.cpp         # Main entry point
+        MarketSim.h           # Main header
 ```
 
 ## Components
