@@ -1,5 +1,7 @@
 #include "order_book.h"
 #include <algorithm>
+#include <iostream>
+#include <iomanip>
 
 namespace marketsim::exchange::operations {
 
@@ -151,6 +153,41 @@ namespace marketsim::exchange::operations {
             total += level.total_quantity();
         }
         return total;
+    }
+
+    void OrderBook::print_depth(int depth) const {
+        // Get both sides
+        auto buy_levels = get_buy_side(depth);
+        auto sell_levels = get_sell_side(depth);
+
+        // Print header
+        std::cout << symbol_ << " Order Book\n";
+        std::cout << "Bid\t\t\tAsk\n";
+        std::cout << std::fixed << std::setprecision(2);
+
+        size_t max_levels = std::max(buy_levels.size(), sell_levels.size());
+
+        // Print each level
+        for (size_t i = 0; i < max_levels; ++i) {
+            // Bid side
+            if (i < buy_levels.size()) {
+                std::cout << buy_levels[i].price << "\t" << static_cast<int>(buy_levels[i].total_quantity());
+            }
+            else {
+                std::cout << "\t";
+            }
+
+            // Spacing between bid and ask
+            std::cout << "\t\t";
+
+            // Ask side
+            if (i < sell_levels.size()) {
+                std::cout << sell_levels[i].price << "\t" << static_cast<int>(sell_levels[i].total_quantity());
+            }
+
+            std::cout << "\n";
+        }
+        std::cout << std::endl;
     }
 
 }

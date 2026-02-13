@@ -228,16 +228,16 @@ void StatusMonitor::check_socket_health() {
 
 // Health check methods
 std::vector<std::string> StatusMonitor::get_dead_threads() const {
-    std::vector<std::string> dead_threads;
-    std::lock_guard<std::mutex> lock(threads_mutex_);
+std::vector<std::string> dead_threads;
+std::lock_guard<std::mutex> lock(threads_mutex_);
     
-    for (const auto& [id, info] : threads_) {
-        if (info.state == ThreadState::TERMINATED || info.state == ThreadState::ERROR) {
-            dead_threads.push_back(info.name);
-        }
+for (const auto& [id, info] : threads_) {
+    if (info.state == ThreadState::TERMINATED || info.state == ThreadState::UNKNOWN) {
+        dead_threads.push_back(info.name);
     }
+}
     
-    return dead_threads;
+return dead_threads;
 }
 
 std::vector<std::string> StatusMonitor::get_stuck_threads(int idle_threshold_seconds) const {

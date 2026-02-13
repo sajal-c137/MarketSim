@@ -78,6 +78,9 @@ namespace marketsim::exchange::operations {
 
         const std::string& get_symbol() const { return symbol_; }
 
+        // Display order book in market depth format
+        void print_depth(int depth = 10) const;
+
     private:
         std::string symbol_;
 
