@@ -133,6 +133,22 @@ void ExchangeService::handle_status_request(io_handler::ZmqReplier& status_repli
                 resp.set_mid_price_timestamp(0);
             }
             
+            // Add trade price history
+            const auto& trade_history = symbol_data.engine->get_trade_price_history();
+            for (const auto& tick : trade_history.get_all()) {
+                auto* pb_tick = resp.add_trade_price_history();
+                pb_tick->set_price(tick.price);
+                pb_tick->set_timestamp_ms(tick.timestamp_ms);
+            }
+            
+            // Add mid price history
+            const auto& mid_history = symbol_data.engine->get_mid_price_history();
+            for (const auto& tick : mid_history.get_all()) {
+                auto* pb_tick = resp.add_mid_price_history();
+                pb_tick->set_price(tick.price);
+                pb_tick->set_timestamp_ms(tick.timestamp_ms);
+            }
+            
             // Add last received order if available
             if (symbol_data.order_count > 0) {
                 auto* last_order = resp.mutable_last_received_order();

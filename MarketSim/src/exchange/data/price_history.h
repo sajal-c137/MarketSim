@@ -35,6 +35,12 @@ public:
     
     // Add new price tick
     void add(double price, int64_t timestamp_ms) {
+        // Ensure timestamps are monotonically increasing
+        if (!history_.empty() && timestamp_ms < history_.back().timestamp_ms) {
+            // Use the last timestamp + 1ms if clock went backwards
+            timestamp_ms = history_.back().timestamp_ms + 1;
+        }
+        
         history_.emplace_back(price, timestamp_ms);
         if (history_.size() > max_size_) {
             history_.pop_front();

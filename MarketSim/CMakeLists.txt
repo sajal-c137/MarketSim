@@ -56,6 +56,7 @@ target_link_libraries(MarketSim
 add_library(monitor_lib STATIC
     "src/monitor/status_monitor.cpp"
     "src/monitor/exchange_logger.cpp"
+    "src/monitor/history_recorder.cpp"
 )
 
 # Monitor service library (has I/O dependencies)

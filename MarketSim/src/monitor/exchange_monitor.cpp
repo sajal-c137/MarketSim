@@ -1,5 +1,6 @@
 #include "exchange_monitor.h"
 #include "exchange_logger.h"
+#include "history_recorder.h"
 #include <iostream>
 #include <chrono>
 
@@ -52,6 +53,12 @@ void ExchangeMonitor::start() {
     // Print header
     ExchangeLogger::print_startup_header();
     
+    // Start history recording if enabled
+    if (config_.enable_history_recording) {
+        history_recorder_ = std::make_unique<HistoryRecorder>(config_.history_config);
+        history_recorder_->start_session(config_.ticker);
+    }
+    
     // Start monitoring thread
     running_ = true;
     monitor_thread_ = std::make_unique<std::thread>(
@@ -62,6 +69,12 @@ void ExchangeMonitor::start() {
 
 void ExchangeMonitor::stop() {
     running_ = false;
+    
+    // Stop history recording
+    if (history_recorder_) {
+        history_recorder_->end_session();
+    }
+    
     if (monitor_thread_ && monitor_thread_->joinable()) {
         monitor_thread_->join();
     }
@@ -110,6 +123,11 @@ exchange::StatusResponse response;
     } catch (const std::exception& e) {
         // Silently skip if Exchange not responding yet
         return;
+    }
+    
+    // Record to history if enabled
+    if (history_recorder_ && history_recorder_->is_recording()) {
+        history_recorder_->record_status(response);
     }
     
     // Only display if we have activity (orders received)

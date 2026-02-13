@@ -10,6 +10,11 @@
 
 namespace marketsim::monitor {
 
+// Forward declare
+class HistoryRecorder;
+
+/**
+
 /**
  * @brief Exchange Monitor Service
  * 
@@ -59,6 +64,7 @@ private:
     MonitorConfig config_;
     io_handler::IOContext io_context_;
     std::unique_ptr<io_handler::ZmqRequester> status_requester_;
+    std::unique_ptr<HistoryRecorder> history_recorder_;
     
     std::unique_ptr<std::thread> monitor_thread_;
     std::atomic<bool> running_;

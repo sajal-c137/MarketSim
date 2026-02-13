@@ -82,6 +82,12 @@ message OrderBookLevel {
   int32 order_count = 3;         // Number of orders at this level
 }
 
+// Price tick (single price point with timestamp)
+message PriceTick {
+  double price = 1;
+  int64 timestamp_ms = 2;         // Milliseconds since epoch
+}
+
 // Full order book snapshot
 message OrderBook {
   string symbol = 1;
@@ -165,6 +171,8 @@ message StatusResponse {
   double mid_price = 8;  // Current mid price (best_bid + best_ask) / 2
   int64 last_trade_timestamp = 9;  // Timestamp of last trade
   int64 mid_price_timestamp = 10;  // Timestamp of mid price
+  repeated PriceTick trade_price_history = 11;  // Historical trade prices
+  repeated PriceTick mid_price_history = 12;    // Historical mid prices
 }
 
 // ============================================================================

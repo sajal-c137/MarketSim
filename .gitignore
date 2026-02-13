@@ -31,6 +31,9 @@ cmake_install.cmake
 # Logs
 *.log
 
+# Market history data files
+market_history/
+
 # Ignore service ideas files
 **/IDEAS.md
 /MarketSim/MONITOR_ARCHITECTURE.md
