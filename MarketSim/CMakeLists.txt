@@ -43,10 +43,13 @@ if (CMAKE_VERSION VERSION_GREATER 3.12)
 endif()
 
 # Link vcpkg libraries
+find_package(tabulate CONFIG REQUIRED)
+
 target_link_libraries(MarketSim 
     PRIVATE 
     cppzmq cppzmq-static
     protobuf::libprotobuf
+    tabulate::tabulate
 )
 
 # Monitor library (core logging, no I/O dependencies to avoid circular deps)
@@ -67,6 +70,7 @@ target_include_directories(monitor_lib PUBLIC
 
 target_link_libraries(monitor_lib PUBLIC
     proto_lib
+    tabulate::tabulate
 )
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)

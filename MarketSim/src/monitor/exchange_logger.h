@@ -15,6 +15,9 @@ namespace marketsim::monitor {
  */
 class ExchangeLogger {
 public:
+    // Clear screen and reset cursor
+    static void clear_screen();
+    
     // Log received order
     static void log_order_received(
         int order_count,
@@ -38,6 +41,11 @@ public:
     static void log_orderbook(
         const exchange::operations::OrderBook& order_book,
         int depth = 3
+    );
+    
+    // Log orderbook from protobuf (for monitor display)
+    static void log_orderbook_pb(
+        const marketsim::exchange::OrderBook& pb_orderbook
     );
     
     // Print header on startup

@@ -1,8 +1,14 @@
 #include "exchange_logger.h"
+#include <tabulate/table.hpp>
 #include <iostream>
 #include <iomanip>
+#include <sstream>
 
 namespace marketsim::monitor {
+
+void ExchangeLogger::clear_screen() {
+    std::cout << "\033[2J\033[H" << std::flush;  // Clear screen + move cursor to home
+}
 
 void ExchangeLogger::log_order_received(
     int order_count,
@@ -52,26 +58,203 @@ void ExchangeLogger::log_orderbook(
     auto buy_levels = order_book.get_buy_side(depth);
     auto sell_levels = order_book.get_sell_side(depth);
     
-    std::cout << "[BOOK] BUYS=";
-    if (buy_levels.empty()) {
-        std::cout << "empty";
-    } else {
-        for (size_t i = 0; i < buy_levels.size(); ++i) {
-            if (i > 0) std::cout << ",";
-            std::cout << buy_levels[i].price << ":" << buy_levels[i].total_quantity();
+    using namespace tabulate;
+    
+    // Clear screen and move cursor to top-left for refresh effect
+    clear_screen();
+    
+    std::cout << "[ORDERBOOK] " << order_book.get_symbol() << " - Live Update\n";
+    
+    Table table;
+    
+    // Set table format
+    table.format()
+        .border_top("?")
+        .border_bottom("?")
+        .border_left("?")
+        .border_right("?")
+        .corner_top_left("?")
+        .corner_top_right("?")
+        .corner_bottom_left("?")
+        .corner_bottom_right("?")
+        .corner("?");
+    
+    // Add header row with styling
+    table.add_row({"BIDS (Buy)", "", "", "ASKS (Sell)", "", ""});
+    table[0].format()
+        .font_color(Color::green)
+        .font_align(FontAlign::center)
+        .font_style({FontStyle::bold});
+    
+    // Add column headers
+    table.add_row({"Price", "Quantity", "Orders", "Price", "Quantity", "Orders"});
+    table[1].format()
+        .font_color(Color::yellow)
+        .font_align(FontAlign::center);
+    
+    // Determine max rows
+    size_t max_rows = std::max(buy_levels.size(), sell_levels.size());
+    
+    // Add data rows
+    for (size_t i = 0; i < max_rows; ++i) {
+        std::string buy_price = "", buy_qty = "", buy_orders = "";
+        std::string sell_price = "", sell_qty = "", sell_orders = "";
+        
+        // Buy side (left 3 columns)
+        if (i < buy_levels.size()) {
+            const auto& buy = buy_levels[i];
+            std::ostringstream ps, qs, os;
+            ps << std::fixed << std::setprecision(2) << "$" << buy.price;
+            qs << std::fixed << std::setprecision(2) << buy.total_quantity();
+            os << buy.orders.size();
+            buy_price = ps.str();
+            buy_qty = qs.str();
+            buy_orders = os.str();
+        }
+        
+        // Sell side (right 3 columns)
+        if (i < sell_levels.size()) {
+            const auto& sell = sell_levels[i];
+            std::ostringstream ps, qs, os;
+            ps << std::fixed << std::setprecision(2) << "$" << sell.price;
+            qs << std::fixed << std::setprecision(2) << sell.total_quantity();
+            os << sell.orders.size();
+            sell_price = ps.str();
+            sell_qty = qs.str();
+            sell_orders = os.str();
+        }
+        
+        table.add_row({buy_price, buy_qty, buy_orders, sell_price, sell_qty, sell_orders});
+        
+        // Color buy side green
+        if (i < buy_levels.size()) {
+            table[i + 2][0].format().font_color(Color::green);
+            table[i + 2][1].format().font_color(Color::green);
+            table[i + 2][2].format().font_color(Color::green);
+        }
+        
+        // Color sell side red
+        if (i < sell_levels.size()) {
+            table[i + 2][3].format().font_color(Color::red);
+            table[i + 2][4].format().font_color(Color::red);
+            table[i + 2][5].format().font_color(Color::red);
         }
     }
     
-    std::cout << " | SELLS=";
-    if (sell_levels.empty()) {
-        std::cout << "empty";
-    } else {
-        for (size_t i = 0; i < sell_levels.size(); ++i) {
-            if (i > 0) std::cout << ",";
-            std::cout << sell_levels[i].price << ":" << sell_levels[i].total_quantity();
+    // Set column alignments
+    for (size_t i = 0; i < table.size(); ++i) {
+        if (i >= 2) {  // Data rows
+            table[i][0].format().font_align(FontAlign::right);
+            table[i][1].format().font_align(FontAlign::right);
+            table[i][2].format().font_align(FontAlign::center);
+            table[i][3].format().font_align(FontAlign::right);
+            table[i][4].format().font_align(FontAlign::right);
+            table[i][5].format().font_align(FontAlign::center);
         }
     }
-    std::cout << "\n\n";
+    
+    std::cout << table << "\n\n";
+}
+
+void ExchangeLogger::log_orderbook_pb(
+    const marketsim::exchange::OrderBook& pb_orderbook)
+{
+    using namespace tabulate;
+    
+    // Clear screen and move cursor to top-left for refresh effect
+    clear_screen();
+    
+    std::cout << "[ORDERBOOK] " << pb_orderbook.symbol() << " - Live Update\n";
+    
+    Table table;
+    
+    // Set table format
+    table.format()
+        .border_top("?")
+        .border_bottom("?")
+        .border_left("?")
+        .border_right("?")
+        .corner_top_left("?")
+        .corner_top_right("?")
+        .corner_bottom_left("?")
+        .corner_bottom_right("?")
+        .corner("?");
+    
+    // Add header row with styling
+    table.add_row({"BIDS (Buy)", "", "", "ASKS (Sell)", "", ""});
+    table[0].format()
+        .font_color(Color::green)
+        .font_align(FontAlign::center)
+        .font_style({FontStyle::bold});
+    
+    // Add column headers
+    table.add_row({"Price", "Quantity", "Orders", "Price", "Quantity", "Orders"});
+    table[1].format()
+        .font_color(Color::yellow)
+        .font_align(FontAlign::center);
+    
+    // Determine max rows
+    size_t max_rows = std::max(pb_orderbook.bids_size(), pb_orderbook.asks_size());
+    
+    // Add data rows - DIRECTLY FROM PROTOBUF
+    for (size_t i = 0; i < max_rows; ++i) {
+        std::string buy_price = "", buy_qty = "", buy_orders = "";
+        std::string sell_price = "", sell_qty = "", sell_orders = "";
+        
+        // Buy side
+        if (i < static_cast<size_t>(pb_orderbook.bids_size())) {
+            const auto& bid = pb_orderbook.bids(i);
+            std::ostringstream ps, qs, os;
+            ps << std::fixed << std::setprecision(2) << "$" << bid.price();
+            qs << std::fixed << std::setprecision(2) << bid.quantity();
+            os << bid.order_count();  // This is the ACTUAL order count from Exchange
+            buy_price = ps.str();
+            buy_qty = qs.str();
+            buy_orders = os.str();
+        }
+        
+        // Sell side
+        if (i < static_cast<size_t>(pb_orderbook.asks_size())) {
+            const auto& ask = pb_orderbook.asks(i);
+            std::ostringstream ps, qs, os;
+            ps << std::fixed << std::setprecision(2) << "$" << ask.price();
+            qs << std::fixed << std::setprecision(2) << ask.quantity();
+            os << ask.order_count();  // This is the ACTUAL order count from Exchange
+            sell_price = ps.str();
+            sell_qty = qs.str();
+            sell_orders = os.str();
+        }
+        
+        table.add_row({buy_price, buy_qty, buy_orders, sell_price, sell_qty, sell_orders});
+        
+        // Color buy side green
+        if (!buy_price.empty()) {
+            table[i + 2][0].format().font_color(Color::green);
+            table[i + 2][1].format().font_color(Color::green);
+            table[i + 2][2].format().font_color(Color::green);
+        }
+        
+        // Color sell side red
+        if (!sell_price.empty()) {
+            table[i + 2][3].format().font_color(Color::red);
+            table[i + 2][4].format().font_color(Color::red);
+            table[i + 2][5].format().font_color(Color::red);
+        }
+    }
+    
+    // Set column alignments
+    for (size_t i = 0; i < table.size(); ++i) {
+        if (i >= 2) {  // Data rows
+            table[i][0].format().font_align(FontAlign::right);
+            table[i][1].format().font_align(FontAlign::right);
+            table[i][2].format().font_align(FontAlign::center);
+            table[i][3].format().font_align(FontAlign::right);
+            table[i][4].format().font_align(FontAlign::right);
+            table[i][5].format().font_align(FontAlign::center);
+        }
+    }
+    
+    std::cout << table << "\n\n";
 }
 
 void ExchangeLogger::print_startup_header() {

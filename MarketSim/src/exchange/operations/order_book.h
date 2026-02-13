@@ -66,11 +66,18 @@ namespace marketsim::exchange::operations {
         bool get_best_bid(double& price, double& quantity) const;
         bool get_best_ask(double& price, double& quantity) const;
 
-        // Get order book snapshot
-        std::vector<PriceLevel> get_buy_side(int depth = 10) const;
-        std::vector<PriceLevel> get_sell_side(int depth = 10) const;
+    // Get order book snapshot
+    std::vector<PriceLevel> get_buy_side(int depth = 10) const;
+    std::vector<PriceLevel> get_sell_side(int depth = 10) const;
 
-        // Statistics
+    // Direct access to maps (for matching engine to modify in-place)
+    std::map<double, PriceLevel, std::greater<double>>& get_buy_side_map() { return buy_side_; }
+    std::map<double, PriceLevel, std::less<double>>& get_sell_side_map() { return sell_side_; }
+    
+    // Remove order from tracking map
+    void remove_order_from_map(const std::string& order_id) { order_price_map_.erase(order_id); }
+
+    // Statistics
         size_t total_buy_orders() const;
         size_t total_sell_orders() const;
         double total_buy_quantity() const;

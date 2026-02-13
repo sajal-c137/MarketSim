@@ -134,49 +134,9 @@ exchange::StatusResponse response;
         );
     }
     
-    // Display orderbook snapshot
+    // Display orderbook snapshot - USE PROTOBUF DIRECTLY
     if (response.has_current_orderbook()) {
-        // Convert protobuf OrderBook to operations::OrderBook for logging
-        // For now, we'll create a temporary OrderBook and populate it
-        
-        // Create a minimal orderbook representation for display
-        const auto& pb_orderbook = response.current_orderbook();
-        
-        // Create a real OrderBook object
-        exchange::operations::OrderBook display_book(pb_orderbook.symbol());
-        
-        // Add orders to the book from the protobuf levels
-        // Note: This is a simplified approach - we're creating synthetic orders
-        // just for display purposes
-        for (const auto& bid : pb_orderbook.bids()) {
-            if (bid.order_count() > 0) {
-                // Create a synthetic order entry for this price level
-                exchange::operations::OrderEntry entry(
-                    "display",  // dummy order id
-                    "monitor",  // dummy client id
-                    bid.price(),
-                    bid.quantity(),
-                    0  // timestamp
-                );
-                display_book.add_order(entry, true);  // true = buy side
-            }
-        }
-        
-        for (const auto& ask : pb_orderbook.asks()) {
-            if (ask.order_count() > 0) {
-                // Create a synthetic order entry for this price level
-                exchange::operations::OrderEntry entry(
-                    "display",  // dummy order id
-                    "monitor",  // dummy client id
-                    ask.price(),
-                    ask.quantity(),
-                    0  // timestamp
-                );
-                display_book.add_order(entry, false);  // false = sell side
-            }
-        }
-        
-        ExchangeLogger::log_orderbook(display_book, 5);
+        ExchangeLogger::log_orderbook_pb(response.current_orderbook());
     }
 }
 

@@ -103,24 +103,64 @@ namespace marketsim::exchange::operations {
         ctx.average_price = 0;
         double total_filled_value = 0;
 
-        auto sell_side = order_book_.get_sell_side(10);
-
-        // Match against sell side (lowest ask first)
-        for (auto& sell_level : sell_side) {
-            if (buy_order.type() == marketsim::exchange::OrderType::LIMIT &&
-                sell_level.price > buy_order.price()) {
-                break;  // No match at this price
+        // Match against sell side (lowest ask first) - DIRECT ACCESS, not copies
+        while (ctx.remaining_quantity > 0) {
+            double best_ask_price = 0;
+            double best_ask_qty = 0;
+            
+            if (!order_book_.get_best_ask(best_ask_price, best_ask_qty)) {
+                break;  // No more sellers
             }
 
-            // Match against orders at this price level (FIFO)
-            for (auto& sell_order : sell_level.orders) {
-                if (ctx.remaining_quantity <= 0) break;
+            // Check if price is acceptable for limit order
+            if (buy_order.type() == marketsim::exchange::OrderType::LIMIT &&
+                best_ask_price > buy_order.price()) {
+                break;  // Price too high
+            }
 
+            // Get the actual sell-side map and modify it directly
+            auto& sell_side_map = order_book_.get_sell_side_map();
+            auto level_it = sell_side_map.find(best_ask_price);
+            
+            if (level_it == sell_side_map.end()) {
+                break;  // Should not happen
+            }
+
+            auto& orders = level_it->second.orders;
+            
+            // Process orders at this price level (FIFO)
+            while (!orders.empty() && ctx.remaining_quantity > 0) {
+                auto& sell_order = orders.front();
+                
                 double fill_qty = std::min(ctx.remaining_quantity, sell_order.remaining_quantity());
-                execute_fill(sell_order, buy_order, fill_qty, sell_level.price, ctx.trades);
+                
+                // Create trade
+                marketsim::exchange::Trade trade;
+                trade.set_trade_id(generate_trade_id());
+                trade.set_symbol(order_book_.get_symbol());
+                trade.set_price(best_ask_price);
+                trade.set_quantity(fill_qty);
+                trade.set_timestamp(std::chrono::system_clock::now().time_since_epoch().count());
+                trade.set_aggressor_side(marketsim::exchange::OrderSide::BUY);
+                trade.set_buyer_order_id(buy_order.order_id());
+                trade.set_seller_order_id(sell_order.order_id);
+                ctx.trades.push_back(trade);
 
+                // Update filled quantity
+                sell_order.filled_quantity += fill_qty;
                 ctx.remaining_quantity -= fill_qty;
-                total_filled_value += fill_qty * sell_level.price;
+                total_filled_value += fill_qty * best_ask_price;
+
+                // Remove if fully filled
+                if (sell_order.remaining_quantity() <= 0) {
+                    order_book_.remove_order_from_map(sell_order.order_id);
+                    orders.erase(orders.begin());
+                }
+            }
+
+            // Remove empty price level
+            if (orders.empty()) {
+                sell_side_map.erase(level_it);
             }
         }
 
@@ -137,24 +177,64 @@ namespace marketsim::exchange::operations {
         ctx.average_price = 0;
         double total_filled_value = 0;
 
-        auto buy_side = order_book_.get_buy_side(10);
-
-        // Match against buy side (highest bid first)
-        for (auto& buy_level : buy_side) {
-            if (sell_order.type() == marketsim::exchange::OrderType::LIMIT &&
-                buy_level.price < sell_order.price()) {
-                break;  // No match at this price
+        // Match against buy side (highest bid first) - DIRECT ACCESS, not copies
+        while (ctx.remaining_quantity > 0) {
+            double best_bid_price = 0;
+            double best_bid_qty = 0;
+            
+            if (!order_book_.get_best_bid(best_bid_price, best_bid_qty)) {
+                break;  // No more buyers
             }
 
-            // Match against orders at this price level (FIFO)
-            for (auto& buy_order : buy_level.orders) {
-                if (ctx.remaining_quantity <= 0) break;
+            // Check if price is acceptable for limit order
+            if (sell_order.type() == marketsim::exchange::OrderType::LIMIT &&
+                best_bid_price < sell_order.price()) {
+                break;  // Price too low
+            }
 
+            // Get the actual buy-side map and modify it directly
+            auto& buy_side_map = order_book_.get_buy_side_map();
+            auto level_it = buy_side_map.find(best_bid_price);
+            
+            if (level_it == buy_side_map.end()) {
+                break;  // Should not happen
+            }
+
+            auto& orders = level_it->second.orders;
+            
+            // Process orders at this price level (FIFO)
+            while (!orders.empty() && ctx.remaining_quantity > 0) {
+                auto& buy_order = orders.front();
+                
                 double fill_qty = std::min(ctx.remaining_quantity, buy_order.remaining_quantity());
-                execute_fill(buy_order, sell_order, fill_qty, buy_level.price, ctx.trades);
+                
+                // Create trade
+                marketsim::exchange::Trade trade;
+                trade.set_trade_id(generate_trade_id());
+                trade.set_symbol(order_book_.get_symbol());
+                trade.set_price(best_bid_price);
+                trade.set_quantity(fill_qty);
+                trade.set_timestamp(std::chrono::system_clock::now().time_since_epoch().count());
+                trade.set_aggressor_side(marketsim::exchange::OrderSide::SELL);
+                trade.set_buyer_order_id(buy_order.order_id);
+                trade.set_seller_order_id(sell_order.order_id());
+                ctx.trades.push_back(trade);
 
+                // Update filled quantity
+                buy_order.filled_quantity += fill_qty;
                 ctx.remaining_quantity -= fill_qty;
-                total_filled_value += fill_qty * buy_level.price;
+                total_filled_value += fill_qty * best_bid_price;
+
+                // Remove if fully filled
+                if (buy_order.remaining_quantity() <= 0) {
+                    order_book_.remove_order_from_map(buy_order.order_id);
+                    orders.erase(orders.begin());
+                }
+            }
+
+            // Remove empty price level
+            if (orders.empty()) {
+                buy_side_map.erase(level_it);
             }
         }
 
@@ -165,37 +245,10 @@ namespace marketsim::exchange::operations {
         return ctx;
     }
 
-    void MatchingEngine::execute_fill(OrderEntry& existing_order, const marketsim::exchange::Order& incoming,
-        double fill_quantity, double fill_price,
-        std::vector<marketsim::exchange::Trade>& trades) {
-        existing_order.filled_quantity += fill_quantity;
-
-        // Create trade record
-        marketsim::exchange::Trade trade;
-        trade.set_trade_id(generate_trade_id());
-        trade.set_symbol(order_book_.get_symbol());
-        trade.set_price(fill_price);
-        trade.set_quantity(fill_quantity);
-        trade.set_timestamp(std::chrono::system_clock::now().time_since_epoch().count());
-
-        if (incoming.side() == marketsim::exchange::OrderSide::BUY) {
-            trade.set_aggressor_side(marketsim::exchange::OrderSide::BUY);
-            trade.set_buyer_order_id(incoming.order_id());
-            trade.set_seller_order_id(existing_order.order_id);
-        }
-        else {
-            trade.set_aggressor_side(marketsim::exchange::OrderSide::SELL);
-            trade.set_buyer_order_id(existing_order.order_id);
-            trade.set_seller_order_id(incoming.order_id());
-        }
-
-        trades.push_back(trade);
-    }
-
     std::string MatchingEngine::generate_trade_id() {
         std::ostringstream oss;
         oss << "TRD_" << std::setfill('0') << std::setw(10) << (++trade_id_counter_);
         return oss.str();
     }
 
-}
+} // namespace marketsim::exchange::operations

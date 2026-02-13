@@ -56,10 +56,6 @@ namespace marketsim::exchange::operations {
         // Match sell order against buy side
         TradeExecutionContext match_sell_order(const marketsim::exchange::Order& sell_order);
 
-        // Execute partial fill
-        void execute_fill(OrderEntry& existing_order, const marketsim::exchange::Order& incoming,
-            double fill_quantity, double fill_price, std::vector<marketsim::exchange::Trade>& trades);
-
         // Generate unique trade ID
         std::string generate_trade_id();
 
