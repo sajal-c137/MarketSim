@@ -11,10 +11,14 @@ namespace marketsim::traffic_generator::models {
 struct GenerationParameters {
     std::string symbol;              // Trading symbol (e.g., "AAPL")
     double base_price;               // Starting price (e.g., 100.0)
-    double price_rate;               // Price increase per second (e.g., 10.0)
+    double price_rate;               // Price increase per second (e.g., 10.0) - for linear model
     double order_quantity;           // Order size (e.g., 1.0)
     double step_interval_ms;         // Time between orders in milliseconds (e.g., 100 for 0.1s)
     double duration_seconds;         // Total duration (e.g., 10.0 seconds)
+    
+    // GBM parameters
+    double drift;                    // Annual drift (?) in percentage (e.g., 5.0 = 5%)
+    double volatility;               // Annual volatility (?) in percentage (e.g., 3.0 = 3%)
     
     GenerationParameters()
         : symbol("AAPL")
@@ -23,6 +27,8 @@ struct GenerationParameters {
         , order_quantity(1.0)
         , step_interval_ms(100.0)  // 0.1 seconds
         , duration_seconds(10.0)
+        , drift(5.0)               // 5% annual drift
+        , volatility(3.0)          // 3% annual volatility
     {}
 };
 

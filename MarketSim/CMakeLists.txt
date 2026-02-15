@@ -173,13 +173,21 @@ endif()
 add_library(traffic_generator_lib STATIC
     # Operations (Pure math)
     "src/traffic_generator/operations/price_movement_calculator.cpp"
+    "src/traffic_generator/operations/gbm_price_generator.cpp"
     "src/traffic_generator/operations/order_flow_generator.cpp"
+    
+    # Price Models (Pluggable pricing strategies)
+    "src/traffic_generator/models/price_models/linear_price_model.cpp"
+    "src/traffic_generator/models/price_models/gbm_price_model.cpp"
+    "src/traffic_generator/models/price_models/price_model_factory.cpp"
     
     # Utils
     "src/traffic_generator/utils/time_utils.cpp"
     
     # Threads
     "src/traffic_generator/threads/generation_thread.cpp"
+    "src/traffic_generator/threads/price_generation_thread.cpp"
+    "src/traffic_generator/threads/order_submission_thread.cpp"
     
     # Main
     "src/traffic_generator/main/traffic_generator_main.cpp"
@@ -232,6 +240,22 @@ target_link_libraries(manual_order_client PRIVATE io_handler_lib proto_lib)
 target_include_directories(manual_order_client PRIVATE "${PROTO_GEN_DIR}")
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET manual_order_client PROPERTY CXX_STANDARD 20)
+endif()
+
+# GBM-based traffic generator (test executable - DEPRECATED: use test_traffic_generator_unified instead)
+add_executable(test_gbm_generator "test/test_gbm_generator.cpp")
+target_link_libraries(test_gbm_generator PRIVATE traffic_generator_lib)
+target_include_directories(test_gbm_generator PRIVATE "${PROTO_GEN_DIR}")
+if (CMAKE_VERSION VERSION_GREATER 3.12)
+  set_property(TARGET test_gbm_generator PROPERTY CXX_STANDARD 20)
+endif()
+
+# Unified traffic generator test (accepts model name as argument)
+add_executable(test_traffic_generator_unified "test/test_traffic_generator_unified.cpp")
+target_link_libraries(test_traffic_generator_unified PRIVATE traffic_generator_lib)
+target_include_directories(test_traffic_generator_unified PRIVATE "${PROTO_GEN_DIR}")
+if (CMAKE_VERSION VERSION_GREATER 3.12)
+  set_property(TARGET test_traffic_generator_unified PROPERTY CXX_STANDARD 20)
 endif()
 
 # TODO: Add tests and install targets if needed.
