@@ -247,11 +247,11 @@ Truncated Pareto with tail index `α` ∈ [1.5, 2.5]
 
 [PRICE UPDATE] $100.03 | Trades: 168 | Volume: 840.00
 
-╔═══════════════════════════════════════════════════════════════╗
-║                        ORDER BOOK - AAPL                      ║
-╠═══════════════════════════════════════════════════════════════╣
-║       BID SIDE       │   SPREAD: $0.06   │      ASK SIDE      ║
-╠══════════════════════╪═══════════════════╪══════════════════╣
+╔══════════════════════════════════════════════════════════════╗
+║                        ORDER BOOK - AAPL                     ║
+╠══════════════════════════════════════════════════════════════╣
+║       BID SIDE       │   SPREAD: $0.06   │      ASK SIDE     ║
+╠══════════════════════╪═══════════════════╪═════════=═════════╣
 ║  Price  │  Quantity  │                   │  Price  │ Quantity║
 ╠─────────┼────────────┤                   ├─────────┼─────────║
 ║ $100.02 │      8.00  │                   │ $100.08 │    6.00 ║
@@ -273,37 +273,17 @@ Truncated Pareto with tail index `α` ∈ [1.5, 2.5]
 
 ---
 
-## Roadmap
-
-- [ ] **Trader Component**: Implement trading strategies (VWAP, TWAP, Market Making)
-- [ ] **Market Data Streaming**: PUB-SUB for real-time order book updates
-- [ ] **Persistence Layer**: Database integration for historical data
-- [ ] **REST API**: HTTP interface for external clients
-- [ ] **Metrics Export**: Prometheus/Grafana integration
-- [ ] **Backtesting Engine**: Historical simulation framework
-- [ ] **Risk Management**: Position limits, margin calculations
-
----
-
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License
 
 ---
 
 ## Author
 
-**Sajal Chaudhary**
+**Sajal Agarwal**
 - GitHub: [@sajal-c137](https://github.com/sajal-c137)
-- LinkedIn: [Your LinkedIn](https://linkedin.com/in/your-profile)
-
----
-
-## Acknowledgments
-
-- **ZeroMQ Community**: High-performance messaging library
-- **Google Protocol Buffers**: Efficient serialization
-- **Quantitative Finance Literature**: Hawkes processes, market microstructure theory
+- LinkedIn: [@sajalagarwal33](https://www.linkedin.com/in/sajalagarwal33/)
 
 ---
 
