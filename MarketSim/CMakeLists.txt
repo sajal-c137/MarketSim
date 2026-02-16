@@ -52,6 +52,19 @@ target_link_libraries(MarketSim
     tabulate::tabulate
 )
 
+# Common Math library (pure mathematical utilities)
+add_library(common_math_lib STATIC
+    "src/common/math/distributions.cpp"
+)
+
+target_include_directories(common_math_lib PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+)
+
+if (CMAKE_VERSION VERSION_GREATER 3.12)
+  set_property(TARGET common_math_lib PROPERTY CXX_STANDARD 20)
+endif()
+
 # Monitor library (core logging, no I/O dependencies to avoid circular deps)
 add_library(monitor_lib STATIC
     "src/monitor/status_monitor.cpp"
@@ -179,6 +192,7 @@ add_library(traffic_generator_lib STATIC
     # Price Models (Pluggable pricing strategies)
     "src/traffic_generator/models/price_models/linear_price_model.cpp"
     "src/traffic_generator/models/price_models/gbm_price_model.cpp"
+    "src/traffic_generator/models/price_models/hawkes_microstructure_model.cpp"
     "src/traffic_generator/models/price_models/price_model_factory.cpp"
     
     # Utils
@@ -202,6 +216,7 @@ target_link_libraries(traffic_generator_lib PUBLIC
     monitor_lib
     io_handler_lib
     proto_lib
+    common_math_lib
     cppzmq
     cppzmq-static
 )
@@ -240,14 +255,6 @@ target_link_libraries(manual_order_client PRIVATE io_handler_lib proto_lib)
 target_include_directories(manual_order_client PRIVATE "${PROTO_GEN_DIR}")
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET manual_order_client PROPERTY CXX_STANDARD 20)
-endif()
-
-# GBM-based traffic generator (test executable - DEPRECATED: use test_traffic_generator_unified instead)
-add_executable(test_gbm_generator "test/test_gbm_generator.cpp")
-target_link_libraries(test_gbm_generator PRIVATE traffic_generator_lib)
-target_include_directories(test_gbm_generator PRIVATE "${PROTO_GEN_DIR}")
-if (CMAKE_VERSION VERSION_GREATER 3.12)
-  set_property(TARGET test_gbm_generator PROPERTY CXX_STANDARD 20)
 endif()
 
 # Unified traffic generator test (accepts model name as argument)

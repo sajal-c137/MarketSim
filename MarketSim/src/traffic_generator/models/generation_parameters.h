@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <string>
 #include <cstdint>
@@ -17,8 +17,20 @@ struct GenerationParameters {
     double duration_seconds;         // Total duration (e.g., 10.0 seconds)
     
     // GBM parameters
-    double drift;                    // Annual drift (?) in percentage (e.g., 5.0 = 5%)
-    double volatility;               // Annual volatility (?) in percentage (e.g., 3.0 = 3%)
+    double drift;                    // Annual drift (μ) in percentage (e.g., 5.0 = 5%)
+    double volatility;               // Annual volatility (σ) in percentage (e.g., 3.0 = 3%)
+    
+    // Hawkes Microstructure Model parameters
+    double hawkes_mu;                // μ - Baseline order rate (events per second)
+    double hawkes_alpha;             // α - Excitation coefficient (self-reinforcement)
+    double hawkes_beta;              // β - Decay rate (how fast excitement dies)
+    double momentum_k;               // k - Momentum sensitivity (+ trend, - mean-revert)
+    double price_offset_L;           // L - Minimum price offset (tick size)
+    double price_offset_alpha;       // α - Power law tail index (1.5-2.5)
+    double price_offset_max;         // Maximum price offset (truncation)
+    double volume_mu;                // μ_v - Log-normal volume mean (log-scale)
+    double volume_sigma;             // σ_v - Log-normal volume std dev (log-scale)
+    int orders_per_event;            // N - Number of orders per Hawkes event
     
     GenerationParameters()
         : symbol("AAPL")
@@ -29,6 +41,17 @@ struct GenerationParameters {
         , duration_seconds(10.0)
         , drift(5.0)               // 5% annual drift
         , volatility(3.0)          // 3% annual volatility
+        // Hawkes defaults (realistic market microstructure)
+        , hawkes_mu(2.0)           // 2 background orders/second
+        , hawkes_alpha(0.5)        // Moderate self-excitation
+        , hawkes_beta(3.0)         // Decay to baseline in ~1/3 second
+        , momentum_k(10.0)         // Positive = trend-following
+        , price_offset_L(0.01)     // 1 cent minimum offset
+        , price_offset_alpha(2.0)  // Moderate tail heaviness
+        , price_offset_max(1.0)    // Max $1 from mid-price
+        , volume_mu(0.0)           // Median volume = exp(0) = 1
+        , volume_sigma(0.5)        // Moderate volume variability
+        , orders_per_event(5)      // 5 orders per cluster
     {}
 };
 

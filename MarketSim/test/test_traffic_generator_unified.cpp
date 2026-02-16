@@ -38,8 +38,9 @@ int main(int argc, char* argv[]) {
     
     std::cout << "=== Traffic Generator with " << model_name << " Model ===\n\n";
     
-    // Shared queue for producer-consumer pattern
-    std::queue<traffic_generator::threads::PriceGenerationThread::PricePoint> price_queue;
+    
+    // Shared queue for producer-consumer pattern (ORDERS, not prices!)
+    std::queue<traffic_generator::threads::PriceGenerationThread::Order> order_queue;
     std::mutex queue_mutex;
     std::condition_variable queue_cv;
     
@@ -67,16 +68,25 @@ int main(int argc, char* argv[]) {
     std::cout << "  Symbol: " << config.symbol << "\n";
     std::cout << "  Initial Price: $" << config.base_price << "\n";
     std::cout << "  Model: " << model_name << "\n";
-    if (model_name == "gbm") {
+    if (model_name == "gbm" || model_name == "hawkes") {
         std::cout << "  Drift: " << config.drift << "%\n";
         std::cout << "  Volatility: " << config.volatility << "%\n";
-    } else if (model_name == "linear") {
+    }
+    if (model_name == "hawkes") {
+        std::cout << "  Hawkes ?: " << config.hawkes_mu << " events/sec\n";
+        std::cout << "  Hawkes ?: " << config.hawkes_alpha << " (excitation)\n";
+        std::cout << "  Hawkes ?: " << config.hawkes_beta << " (decay)\n";
+        std::cout << "  Momentum k: " << config.momentum_k << "\n";
+        std::cout << "  Orders per event: " << config.orders_per_event << "\n";
+    }
+    if (model_name == "linear") {
         std::cout << "  Rate: $" << config.price_rate << " per second\n";
     }
     std::cout << "  Interval: " << config.step_interval_ms << " ms\n";
     std::cout << "  Duration: " << config.duration_seconds << " seconds\n";
     std::cout << "  Total Steps: " << total_steps << "\n";
     std::cout << "  Simulated Time Per Step: " << dt << " years\n\n";
+    
     
     // Create price model using factory
     std::unique_ptr<traffic_generator::models::price_models::IPriceModel> price_model;
@@ -94,47 +104,46 @@ int main(int argc, char* argv[]) {
     
     std::cout << "Model Description: " << price_model->description() << "\n\n";
     
-    // Create producer thread (generates prices)
-    traffic_generator::threads::PriceGenerationThread price_thread(
+    // Create producer thread (runs model, generates ORDERS)
+    traffic_generator::threads::PriceGenerationThread order_generator_thread(
+        config.symbol,
         std::move(price_model),
         static_cast<int64_t>(config.step_interval_ms),
         config.duration_seconds,
-        price_queue,
+        order_queue,
         queue_mutex,
         queue_cv
     );
     
-    // Create consumer thread (submits orders)
-    traffic_generator::threads::OrderSubmissionThread order_thread(
-        config.symbol,
-        static_cast<int64_t>(config.order_quantity),
+    // Create consumer thread (submits orders to Exchange)
+    traffic_generator::threads::OrderSubmissionThread order_submitter_thread(
         io_context,
         exchange_endpoint,
-        price_queue,
+        order_queue,
         queue_mutex,
         queue_cv
     );
     
     // Start both threads
     std::cout << "Starting threads...\n\n";
-    price_thread.start();
-    order_thread.start();
+    order_generator_thread.start();
+    order_submitter_thread.start();
     
     // Wait for completion
-    while (price_thread.is_running() || order_thread.is_running()) {
+    while (order_generator_thread.is_running() || order_submitter_thread.is_running()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
     
     // Stop threads
-    price_thread.stop();
-    order_thread.stop();
+    order_generator_thread.stop();
+    order_submitter_thread.stop();
     
     // Summary
     std::cout << "\n=== Summary ===\n";
     std::cout << "Model: " << model_name << "\n";
-    std::cout << "Prices Generated: " << price_thread.prices_generated() << "\n";
-    std::cout << "Orders Sent: " << order_thread.orders_sent() << "\n";
-    std::cout << "Queue Size: " << price_queue.size() << " (should be 0)\n";
+    std::cout << "Orders Generated: " << order_generator_thread.orders_generated() << "\n";
+    std::cout << "Orders Sent: " << order_submitter_thread.orders_sent() << "\n";
+    std::cout << "Queue Size: " << order_queue.size() << " (should be 0)\n";
     
     return 0;
 }

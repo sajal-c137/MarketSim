@@ -1,6 +1,7 @@
 #include "price_model_factory.h"
 #include "linear_price_model.h"
 #include "gbm_price_model.h"
+#include "hawkes_microstructure_model.h"
 #include <algorithm>
 
 namespace marketsim::traffic_generator::models::price_models {
@@ -36,6 +37,20 @@ std::unique_ptr<IPriceModel> PriceModelFactory::create(
             0  // seed = 0 for random
         );
     }
+    else if (name_lower == "hawkes") {
+        // Convert percentage to decimal for GBM component
+        double drift_decimal = config.drift / 100.0;
+        double volatility_decimal = config.volatility / 100.0;
+        
+        return std::make_unique<HawkesMicrostructureModel>(
+            config.base_price,
+            drift_decimal,
+            volatility_decimal,
+            dt,
+            config,  // Pass full config for Hawkes parameters
+            0  // seed = 0 for random
+        );
+    }
     else {
         throw std::invalid_argument(
             "Unknown price model: '" + model_name + "'. " +
@@ -45,7 +60,7 @@ std::unique_ptr<IPriceModel> PriceModelFactory::create(
 }
 
 std::string PriceModelFactory::available_models() {
-    return "linear, gbm";
+    return "linear, gbm, hawkes";
 }
 
 } // namespace marketsim::traffic_generator::models::price_models

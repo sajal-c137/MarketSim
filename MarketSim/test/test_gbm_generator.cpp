@@ -1,6 +1,7 @@
 #include "traffic_generator/threads/price_generation_thread.h"
 #include "traffic_generator/threads/order_submission_thread.h"
 #include "traffic_generator/models/generation_parameters.h"
+#include "traffic_generator/models/price_models/gbm_price_model.h"
 #include "io_handler/io_context.h"
 #include <iostream>
 #include <queue>
@@ -36,19 +37,31 @@ int main() {
     double drift_decimal = config.drift / 100.0;       // 5.0 -> 0.05
     double volatility_decimal = config.volatility / 100.0; // 3.0 -> 0.03
     
+    // Calculate simulated time step (fraction of year per step)
+    double total_steps = config.duration_seconds / (config.step_interval_ms / 1000.0);
+    double dt = 1.0 / total_steps;  // Simulate 1 year over the duration
+    
     std::cout << "Configuration:\n";
     std::cout << "  Symbol: " << config.symbol << "\n";
     std::cout << "  Initial Price: $" << config.base_price << "\n";
     std::cout << "  Drift: " << config.drift << "% (" << drift_decimal << ")\n";
     std::cout << "  Volatility: " << config.volatility << "% (" << volatility_decimal << ")\n";
     std::cout << "  Interval: " << config.step_interval_ms << " ms\n";
-    std::cout << "  Duration: " << config.duration_seconds << " seconds\n\n";
+    std::cout << "  Duration: " << config.duration_seconds << " seconds\n";
+    std::cout << "  Simulated Time Per Step: " << dt << " years\n\n";
     
-    // Create producer thread (generates prices)
-    traffic_generator::threads::PriceGenerationThread price_thread(
+    // Create GBM price model
+    auto price_model = std::make_unique<traffic_generator::models::price_models::GBMPriceModel>(
         config.base_price,
         drift_decimal,
         volatility_decimal,
+        dt,
+        0  // seed = 0 for random
+    );
+    
+    // Create producer thread (generates prices)
+    traffic_generator::threads::PriceGenerationThread price_thread(
+        std::move(price_model),
         static_cast<int64_t>(config.step_interval_ms),
         config.duration_seconds,
         price_queue,

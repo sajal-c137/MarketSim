@@ -1,7 +1,6 @@
 #pragma once
 
 #include "price_generation_thread.h"
-#include "../operations/order_flow_generator.h"
 #include "io_handler/zmq_requester.h"
 #include "io_handler/io_context.h"
 #include <thread>
@@ -14,29 +13,27 @@
 namespace marketsim::traffic_generator::threads {
 
 /**
- * @brief Thread that consumes prices and submits orders to Exchange
+ * @brief Thread that consumes orders and submits them to Exchange
  * 
  * Consumer thread in producer-consumer pattern.
- * Sole responsibility: Pull price from queue, create orders, send to Exchange.
+ * Sole responsibility: Pull order from queue, send to Exchange via ZeroMQ.
+ * 
+ * NO order generation - just network I/O!
  */
 class OrderSubmissionThread {
 public:
     /**
      * @brief Construct order submission thread
-     * @param symbol Trading symbol
-     * @param order_quantity Quantity per order
      * @param io_context ZeroMQ context
      * @param endpoint Exchange endpoint (e.g., "tcp://localhost:5555")
-     * @param queue Shared queue to pull prices from
+     * @param queue Shared queue to pull ORDERS from
      * @param queue_mutex Mutex protecting the queue
      * @param queue_cv Condition variable for signaling
      */
     OrderSubmissionThread(
-        const std::string& symbol,
-        int64_t order_quantity,
         io_handler::IOContext& io_context,
         const std::string& endpoint,
-        std::queue<PriceGenerationThread::PricePoint>& queue,
+        std::queue<PriceGenerationThread::Order>& queue,
         std::mutex& queue_mutex,
         std::condition_variable& queue_cv
     );
@@ -65,20 +62,13 @@ public:
     
 private:
     void run();
-    void process_price(const PriceGenerationThread::PricePoint& point);
-    
-    // Configuration
-    std::string symbol_;
-    int64_t order_quantity_;
-    
-    // Order generator (pure math)
-    operations::OrderFlowGenerator order_generator_;
+    void submit_order(const PriceGenerationThread::Order& order);
     
     // I/O
     std::unique_ptr<io_handler::ZmqRequester> requester_;
     
     // Shared queue (not owned by this thread)
-    std::queue<PriceGenerationThread::PricePoint>& queue_;
+    std::queue<PriceGenerationThread::Order>& queue_;
     std::mutex& queue_mutex_;
     std::condition_variable& queue_cv_;
     
