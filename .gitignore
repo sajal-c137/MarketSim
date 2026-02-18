@@ -28,12 +28,45 @@ cmake_install.cmake
 *.ilk
 *.exp
 
-# Logs
+# Logs and temporary files
 *.log
+*.tmp
+*.bak
+*.old
+*.swp
+*.swo
+*~
+
+# Python cache and generated files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+*.egg
+
+# Python output files
+*.html
+*.png
+aapl_chart.html
+chart.html
+analysis.html
 
 # Market history data files
 market_history/
+MarketSim/market_history/
 
 # Ignore service ideas files
 **/IDEAS.md
 /MarketSim/MONITOR_ARCHITECTURE.md
+
+# Generated documentation
+docs/_build/
+
+# IDE specific
+.vscode/
+.idea/
+*.swp
+*.swo

@@ -1,7 +1,7 @@
 """
 MarketSim Trader Package Setup
 
-To install:
+To install from project root:
     pip install -e .
 
 To use:
@@ -13,8 +13,8 @@ To use:
 from setuptools import setup, find_packages
 import os
 
-# Read README from trader/analyze
-readme_path = os.path.join('trader', 'analyze', 'README.md')
+# Trader is now in MarketSim/src/trader
+readme_path = os.path.join('MarketSim', 'src', 'trader', 'analyze', 'README.md')
 if os.path.exists(readme_path):
     with open(readme_path, 'r', encoding='utf-8') as f:
         long_description = f.read()
@@ -29,7 +29,8 @@ setup(
     long_description_content_type="text/markdown",
     author="MarketSim",
     url="https://github.com/sajal-c137/MarketSim",
-    packages=find_packages(),
+    package_dir={'': 'MarketSim/src'},
+    packages=find_packages(where='MarketSim/src'),
     install_requires=[
         'pandas>=2.0.0',
         'numpy>=1.24.0',
