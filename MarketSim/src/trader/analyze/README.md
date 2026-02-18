@@ -1,107 +1,57 @@
-# MarketSim Trader - Analyze Module
+# Trader Analyze Module
 
-Python package for analyzing and visualizing OHLCV (candlestick) data from MarketSim.
+Reads OHLCV CSV files and creates candlestick charts.
 
 ## Installation
 
-**Option 1: Quick Install (Recommended)**
 ```bash
-# Install dependencies only
-pip install -r trader/analyze/requirements.txt
+pip install -r requirements.txt
 ```
 
-**Option 2: Full Install (Development)**
+## Usage
+
 ```bash
-# Install package in development mode
-pip install -e .
-```
-
-## Quick Start
-
-### 1. Generate Data with MarketSim
-
-First, run the MarketSim system to generate OHLCV data:
-
-```powershell
-# Terminal 1 - Exchange
-.\out\build\x64-debug\MarketSim\test_exchange_server.exe
-
-# Terminal 2 - Traffic Generator
-.\out\build\x64-debug\MarketSim\test_traffic_generator_unified.exe hawkes
-
-# Terminal 3 - Monitor (generates OHLCV files)
-.\out\build\x64-debug\MarketSim\monitor_exchange.exe AAPL
-```
-
-Let it run for 30-60 seconds to collect data. OHLCV data is saved to `MarketSim/market_history/AAPL_ohlcv.csv`.
-
-### 2. Analyze and Visualize
-
-**From project root:**
-```bash
-# Run with Python module syntax
-python -m trader.analyze.main --symbol AAPL
-
-# Or use the convenience scripts in trader/analyze/
-cd trader/analyze
-python run_analysis.py --symbol AAPL
-python run_example.py
-```
-
-**After installing (pip install -e .):**
-```bash
-marketsim-analyze --symbol AAPL
-```
-
-**All options:**
-```bash
-python -m trader.analyze.main --list-files
+# From MarketSim root
 python -m trader.analyze.main --symbol AAPL --output chart.html
-python -m trader.analyze.main --symbol AAPL --ma --output analysis.html
-python -m trader.analyze.main --symbol AAPL --static --output chart.png
+
+# From this directory
+python main.py --symbol AAPL
+python example.py
 ```
 
-## Usage Examples
+## Options
 
-### Python API
+```
+--symbol SYMBOL      Trading symbol (default: AAPL)
+--data-dir PATH      Data directory (default: ../../market_history)
+--output FILE        Save to HTML or PNG
+--ma                 Show moving averages
+--static             Use matplotlib instead of plotly
+--list-files         List available files
+```
+
+## Python API
 
 ```python
 from trader.analyze import OHLCVReader, CandlestickPlotter
 
-# Read data
-reader = OHLCVReader(data_directory='../MarketSim/market_history')
+reader = OHLCVReader()
 df = reader.read_latest('AAPL')
 
-# Get summary
-summary = reader.get_summary(df)
-print(f"Total bars: {summary['total_bars']}")
-print(f"Price range: ${summary['price']['min']:.2f} - ${summary['price']['max']:.2f}")
-
-# Create interactive chart
-plotter = CandlestickPlotter(title="AAPL Analysis")
+plotter = CandlestickPlotter()
 fig = plotter.plot_interactive(df, symbol='AAPL')
 fig.show()
-
-# Create chart with moving averages
-fig = plotter.plot_with_moving_averages(df, symbol='AAPL', ma_periods=[10, 20, 50])
-fig.show()
 ```
 
-## File Structure
+## Data Format
 
+```csv
+timestamp,timestamp_ms,interval_seconds,open,high,low,close,volume
+2025-02-17 14:23:00.000,1739797380000,1,100.50,100.75,100.45,100.60,87.00
 ```
-trader/
-├── __init__.py              # Package initialization
-└── analyze/
-    ├── __init__.py          # Analyze subpackage
-    ├── ohlcv_reader.py      # CSV reading logic
-    ├── candlestick_plotter.py   # Charting logic
-    ├── main.py              # CLI entry point
-    ├── example.py           # Quick example
-    ├── requirements.txt     # Dependencies
-    ├── README.md           # This file
-    └── GUIDE.md            # Complete guide
-```
+
+Source: `MarketSim/market_history/AAPL_ohlcv.csv`
+
 
 ## Data Format
 

@@ -21,7 +21,8 @@ MarketSim is a **real-time market exchange simulator** that models realistic fin
 - **Price-Time Priority Matching Engine** with FIFO order book
 - **Advanced Price Models**: Linear, GBM, and Hawkes self-exciting processes
 - **Distributed Architecture**: Language-agnostic components via Protobuf
-- **Real-Time Monitoring**: Live order book visualization and metrics
+- **Real-Time Monitoring**: Live order book visualization and OHLCV candlesticks
+- **Python Analysis Tools**: Interactive charts and data visualization
 - **Mathematical Rigor**: Statistical distributions, stochastic calculus
 
 ---
@@ -88,11 +89,18 @@ Advanced market data generation using **pluggable price models**:
 
 ### **3. Monitor Service**
 - **Real-Time Display**: Live order book, trade feed, and statistics
-- **History Recording**: Time-series data export for analysis
-- **Configurable Polling**: Adjustable update frequency
+- **OHLCV Generation**: 1-second candlestick bars
+- **History Recording**: CSV export for Python analysis
+- **Configurable Polling**: Adjustable update frequency (100ms)
 - **Formatted Output**: `tabulate` library for clean console tables
 
-### **4. I/O Handler**
+### **4. Python Analysis Tools**
+- **Interactive Charts**: Plotly-based candlestick visualization
+- **OHLCV Data**: Read and process 1-second bars from CSV
+- **Technical Indicators**: Moving averages and volume analysis
+- **Data Export**: Save charts as HTML for sharing
+
+### **5. I/O Handler**
 - **ZMQ Abstractions**: Type-safe wrappers (Requester, Replier, Publisher, Subscriber)
 - **Protobuf Serialization**: Automatic message marshaling
 - **Context Management**: RAII-based lifecycle handling
@@ -169,6 +177,13 @@ Open **4 separate terminals** and run:
 ```
 > Interactive order submission for testing
 
+#### **Terminal 5: Python Analysis (After data collection)**
+```bash
+pip install -r MarketSim/src/trader/analyze/requirements.txt
+python -m trader.analyze.main --symbol AAPL --output chart.html
+```
+> Analyze collected OHLCV data and create interactive charts
+
 ---
 
 ## Project Structure
@@ -185,7 +200,9 @@ MarketSim/
 │   │   │   ├── main/            # ExchangeService orchestrator
 │   │   │   └── operations/      # MatchingEngine, OrderBook
 │   │   ├── io_handler/          # ZMQ wrappers, serialization
-│   │   ├── monitor/             # Logging, history, monitoring
+│   │   ├── monitor/             # Logging, history, OHLCV recording
+│   │   ├── trader/              # Python analysis tools
+│   │   │   └── analyze/         # OHLCV reader, chart plotter
 │   │   └── traffic_generator/   # Market data generation
 │   │       ├── models/          # Price models (Linear, GBM, Hawkes)
 │   │       ├── operations/      # Pure math generators
@@ -225,7 +242,7 @@ Where `σ` is the logistic function and `Δp` is price momentum.
 ```
 f(x) = (α · L^α) / x^(α+1)  for L ≤ x ≤ xₘₐₓ
 ```
-Truncated Pareto with tail index `α` ∈ [1.5, 2.5]
+Truncated Pareto with tail index `α` ∈ [1.5, 3.5]
 
 ### **Matching Engine Algorithm**
 

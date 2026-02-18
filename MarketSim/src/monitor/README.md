@@ -1,33 +1,37 @@
 # Monitor
 
-Provides comprehensive observability features for the entire MarketSim system.
-
-## Responsibilities
-
-- Centralized logging for all components
-- Real-time metrics collection (latency, throughput, error rates)
-- Performance monitoring and profiling
-- Alerting on anomalies and system issues
-- Health checks and component status tracking
-- Dashboard data aggregation
-- **Thread and socket status monitoring** (NEW)
+Real-time exchange monitoring and data recording.
 
 ## Features
 
-- Structured logging with severity levels
-- Time-series metrics storage
-- Configurable alert thresholds
-- Component-specific metric namespaces
-- Low-latency logging to minimize performance impact
-- **Periodic thread status reporting**
-- **Socket connection health monitoring**
-- **Automatic stale connection detection**
+- Live order book display
+- Trade feed logging
+- OHLCV candlestick generation (1s bars)
+- Price history recording
 
-## Dependencies
+## Structure
 
-- Used by: All components (TrafficGenerator, Exchange, Trader, IOHandler)
+```
+monitor/
+├── exchange_monitor.cpp    # Main monitoring loop
+├── exchange_logger.cpp     # Console output formatting
+├── history_recorder.cpp    # CSV file writing
+└── monitor_config.h        # Configuration
+```
 
-## Monitoring Categories
+## Configuration
+
+```cpp
+polling_interval_ms = 100      // Fast polling
+ohlcv_interval_seconds = 1     // 1-second bars
+enable_history_recording = true
+```
+
+## Output
+
+- Console: Live orderbook and trades
+- CSV: `market_history/AAPL_ohlcv.csv`
+
 
 - **Performance**: Latency, throughput, CPU/memory usage
 - **Business**: Order counts, trade volumes, P&L

@@ -1,22 +1,27 @@
 # Exchange
 
-Core matching engine responsible for order matching, order book management, and market data distribution.
+Order matching engine with price-time priority.
 
-## Responsibilities
+## Features
 
-- Maintain order books for all traded instruments
-- Perform order matching (price-time priority)
-- Process incoming orders from Traders and TrafficGenerator
-- Generate and distribute market data feeds
+- Price-time priority (FIFO) matching
+- Multi-symbol order books
+- Trade and price history tracking
+- ZeroMQ REQ-REP interface
 - Maintain trade history and market state
 - Handle order cancellations and modifications
 
-## Dependencies
+```
+exchange/
+├── operations/     # MatchingEngine, OrderBook
+├── main/          # ExchangeService
+└── data/          # PriceHistory, Tick
+```
 
-- Monitor: For logging exchange operations and metrics
-- IOHandler: For distributing market data
+## Endpoints
 
-## Communication
+- `tcp://*:5555` - Order submission (REQ-REP)
+- `tcp://*:5557` - Status queries (REQ-REP)
 
 - **Input**: 
   - Orders from Trader (buy/sell/cancel)
