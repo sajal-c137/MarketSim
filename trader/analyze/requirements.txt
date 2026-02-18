@@ -1,0 +1,14 @@
+# MarketSim Trader Service - Requirements
+# Python dependencies for OHLCV analysis and visualization
+
+# Data processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Visualization
+plotly>=5.14.0
+matplotlib>=3.7.0
+kaleido>=0.2.1  # For static image export from plotly
+
+# Optional: Technical analysis
+# ta-lib  # Uncomment if you want advanced technical indicators

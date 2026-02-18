@@ -33,7 +33,12 @@ public:
      * @brief Record a status update from Exchange
      */
     void record_status(const marketsim::exchange::StatusResponse& response);
-    
+
+    /**
+     * @brief Record an OHLCV bar
+     */
+    void record_ohlcv_bar(const marketsim::exchange::OHLCV& bar);
+
     /**
      * @brief End recording session and close files
      */
@@ -55,20 +60,22 @@ private:
     HistoryRecorderConfig config_;
     bool recording_;
     std::string current_symbol_;
-    
+
     // Output file streams
     std::ofstream trade_price_file_;
     std::ofstream mid_price_file_;
     std::ofstream orderbook_file_;
-    
+    std::ofstream ohlcv_file_;
+
     // Timing
     std::chrono::steady_clock::time_point session_start_time_;
     std::chrono::steady_clock::time_point last_write_time_;
     int record_count_;
-    
+
     // Track last written timestamps to avoid duplicates
     int64_t last_trade_timestamp_written_;
     int64_t last_mid_timestamp_written_;
+    int64_t last_ohlcv_timestamp_written_;
 };
 
 } // namespace marketsim::monitor

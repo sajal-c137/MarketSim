@@ -1,6 +1,7 @@
 #include "exchange_monitor.h"
 #include "exchange_logger.h"
 #include "history_recorder.h"
+#include "io_handler/ohlcv_builder.h"
 #include <iostream>
 #include <chrono>
 
@@ -10,12 +11,14 @@ ExchangeMonitor::ExchangeMonitor(const MonitorConfig& config)
     : config_(config)
     , io_context_(1)
     , running_(false)
+    , last_processed_tick_timestamp_(0)
 {
 }
 
 ExchangeMonitor::ExchangeMonitor(const std::string& status_endpoint)
     : io_context_(1)
     , running_(false)
+    , last_processed_tick_timestamp_(0)
 {
     config_.exchange_status_endpoint = status_endpoint;
 }
@@ -58,7 +61,16 @@ void ExchangeMonitor::start() {
         history_recorder_ = std::make_unique<HistoryRecorder>(config_.history_config);
         history_recorder_->start_session(config_.ticker);
     }
-    
+
+    // Initialize OHLCV builder if enabled
+    if (config_.enable_ohlcv) {
+        ohlcv_builder_ = std::make_unique<io_handler::OHLCVBuilder>(
+            config_.ticker,
+            config_.ohlcv_interval_seconds
+        );
+        std::cout << "[MONITOR] OHLCV enabled: " << config_.ohlcv_interval_seconds << "s bars\n";
+    }
+
     // Start monitoring thread
     running_ = true;
     monitor_thread_ = std::make_unique<std::thread>(
@@ -129,8 +141,39 @@ exchange::StatusResponse response;
     if (history_recorder_ && history_recorder_->is_recording()) {
         history_recorder_->record_status(response);
     }
-    
-    // Only display if we have activity (orders received)
+
+    // === OHLCV PROCESSING (Display FIRST) ===
+    if (ohlcv_builder_ && config_.enable_ohlcv) {
+        // Process only NEW ticks since last poll
+        int new_ticks = 0;
+        for (const auto& tick : response.trade_price_history()) {
+            if (tick.timestamp_ms() > last_processed_tick_timestamp_) {
+                // Volume = 1.0 per tick (can be enhanced later)
+                ohlcv_builder_->process_tick(tick.price(), tick.timestamp_ms(), 1.0);
+                last_processed_tick_timestamp_ = tick.timestamp_ms();
+                new_ticks++;
+            }
+        }
+
+        // Display completed OHLCV bars FIRST
+        if (ohlcv_builder_->has_completed_bar() && config_.show_ohlcv) {
+            auto bar = ohlcv_builder_->get_completed_bar();
+            std::cout << "\n";  // Blank line for separation
+            ExchangeLogger::log_ohlcv(bar);
+
+            // Record OHLCV bar to file
+            if (history_recorder_ && history_recorder_->is_recording()) {
+                history_recorder_->record_ohlcv_bar(bar);
+            }
+        }
+
+        // Debug: Show tick processing (after OHLCV display)
+        if (new_ticks > 0) {
+            std::cout << "[OHLCV_DEBUG] Processed " << new_ticks << " new ticks\n";
+        }
+    }
+
+    // Only display regular logs if we have activity (orders received)
     if (response.total_orders_received() == 0) {
         return;  // No activity yet
     }

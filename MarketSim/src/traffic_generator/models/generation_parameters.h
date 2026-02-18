@@ -37,18 +37,18 @@ struct GenerationParameters {
         , base_price(100.0)
         , price_rate(10.0)
         , order_quantity(1.0)
-        , step_interval_ms(100.0)  // 0.1 seconds
-        , duration_seconds(10.0)
+        , step_interval_ms(10.0)   // 0.01 seconds (10x faster!)
+        , duration_seconds(300.0)  // 5 minutes simulation (30x longer!)
         , drift(5.0)               // 5% annual drift
         , volatility(3.0)          // 3% annual volatility
-        // Hawkes defaults (realistic market microstructure)
-        , hawkes_mu(2.0)           // 2 background orders/second
-        , hawkes_alpha(0.5)        // Moderate self-excitation
-        , hawkes_beta(3.0)         // Decay to baseline in ~1/3 second
-        , momentum_k(10.0)         // Positive = trend-following
-        , price_offset_L(0.01)     // 1 cent minimum offset
-        , price_offset_alpha(2.0)  // Moderate tail heaviness
-        , price_offset_max(1.0)    // Max $1 from mid-price
+        // Hawkes defaults (WIDER SPREAD = MORE LIMIT ORDERS ON BOOK)
+        , hawkes_mu(10.0)          // 10 background orders/second
+        , hawkes_alpha(2.0)        // VERY HIGH self-excitation
+        , hawkes_beta(5.0)         // Fast decay but high rate
+        , momentum_k(2.0)          // REDUCED trend-following (less aggressive)
+        , price_offset_L(0.10)     // 10 cent minimum offset (10x wider!)
+        , price_offset_alpha(3.5)  // HEAVY tail = more orders far from mid
+        , price_offset_max(5.0)    // Max $5 from mid-price (5x wider!)
         , volume_mu(0.0)           // Median volume = exp(0) = 1
         , volume_sigma(0.5)        // Moderate volume variability
         , orders_per_event(5)      // 5 orders per cluster

@@ -3,6 +3,7 @@
 #include "monitor_config.h"
 #include "io_handler/io_context.h"
 #include "io_handler/zmq_requester.h"
+#include "io_handler/ohlcv_builder.h"
 #include "exchange/operations/matching_engine.h"
 #include <memory>
 #include <atomic>
@@ -60,12 +61,14 @@ public:
 private:
     void run_monitor_loop();
     void query_and_display_status();
-    
+
     MonitorConfig config_;
     io_handler::IOContext io_context_;
     std::unique_ptr<io_handler::ZmqRequester> status_requester_;
     std::unique_ptr<HistoryRecorder> history_recorder_;
-    
+    std::unique_ptr<io_handler::OHLCVBuilder> ohlcv_builder_;
+    int64_t last_processed_tick_timestamp_;
+
     std::unique_ptr<std::thread> monitor_thread_;
     std::atomic<bool> running_;
 };

@@ -12,6 +12,7 @@ HistoryRecorder::HistoryRecorder(const HistoryRecorderConfig& config)
     , record_count_(0)
     , last_trade_timestamp_written_(0)
     , last_mid_timestamp_written_(0)
+    , last_ohlcv_timestamp_written_(0)
 {
     // Create output directory if it doesn't exist
     std::filesystem::create_directories(config_.output_directory);
@@ -218,13 +219,59 @@ if (config_.record_trade_prices && trade_price_file_.is_open()) {
     }
 }
 
+void HistoryRecorder::record_ohlcv_bar(const marketsim::exchange::OHLCV& bar) {
+    if (!recording_ || !config_.record_ohlcv) {
+        return;
+    }
+
+    if (!ohlcv_file_.is_open()) {
+        return;
+    }
+
+    // Skip if we already wrote this bar
+    if (bar.timestamp() <= last_ohlcv_timestamp_written_) {
+        return;
+    }
+
+    // Convert timestamp to readable format
+    auto bar_time = std::chrono::system_clock::time_point(
+        std::chrono::milliseconds(bar.timestamp())
+    );
+    auto time_t_bar = std::chrono::system_clock::to_time_t(bar_time);
+    auto ms = bar.timestamp() % 1000;
+
+    std::tm tm_buf;
+    #ifdef _WIN32
+        localtime_s(&tm_buf, &time_t_bar);
+    #else
+        localtime_r(&time_t_bar, &tm_buf);
+    #endif
+
+    std::ostringstream timestamp_stream;
+    timestamp_stream << std::put_time(&tm_buf, "%Y-%m-%d %H:%M:%S")
+                    << "." << std::setfill('0') << std::setw(3) << ms;
+
+    // Write OHLCV data
+    ohlcv_file_ << timestamp_stream.str() << ","
+                << bar.timestamp() << ","
+                << bar.interval_seconds() << ","
+                << bar.open() << ","
+                << bar.high() << ","
+                << bar.low() << ","
+                << bar.close() << ","
+                << bar.volume() << "\n";
+
+    ohlcv_file_.flush();
+    last_ohlcv_timestamp_written_ = bar.timestamp();
+}
+
 void HistoryRecorder::end_session() {
     if (!recording_) return;
-    
+
     close_files();
-    
+
     std::cout << "[HISTORY_RECORDER] Session ended. Recorded " << record_count_ << " snapshots.\n";
-    
+
     recording_ = false;
 }
 
@@ -236,7 +283,7 @@ void HistoryRecorder::open_files(const std::string& symbol) {
             std::cerr << "[HISTORY_RECORDER] Failed to open: " << filename << "\n";
         }
     }
-    
+
     if (config_.record_mid_prices) {
         std::string filename = generate_filename(symbol, "mid_prices");
         mid_price_file_.open(filename, std::ios::out | std::ios::trunc);
@@ -244,11 +291,19 @@ void HistoryRecorder::open_files(const std::string& symbol) {
             std::cerr << "[HISTORY_RECORDER] Failed to open: " << filename << "\n";
         }
     }
-    
+
     if (config_.record_orderbook_snapshots) {
         std::string filename = generate_filename(symbol, "orderbook");
         orderbook_file_.open(filename, std::ios::out | std::ios::trunc);
         if (!orderbook_file_.is_open()) {
+            std::cerr << "[HISTORY_RECORDER] Failed to open: " << filename << "\n";
+        }
+    }
+
+    if (config_.record_ohlcv) {
+        std::string filename = generate_filename(symbol, "ohlcv");
+        ohlcv_file_.open(filename, std::ios::out | std::ios::trunc);
+        if (!ohlcv_file_.is_open()) {
             std::cerr << "[HISTORY_RECORDER] Failed to open: " << filename << "\n";
         }
     }
@@ -258,20 +313,25 @@ void HistoryRecorder::close_files() {
     if (trade_price_file_.is_open()) trade_price_file_.close();
     if (mid_price_file_.is_open()) mid_price_file_.close();
     if (orderbook_file_.is_open()) orderbook_file_.close();
+    if (ohlcv_file_.is_open()) ohlcv_file_.close();
 }
 
 void HistoryRecorder::write_headers() {
     if (trade_price_file_.is_open()) {
         trade_price_file_ << "timestamp,timestamp_ms,price\n";
     }
-    
+
     if (mid_price_file_.is_open()) {
         mid_price_file_ << "timestamp,timestamp_ms,mid_price,best_bid,best_ask,spread\n";
     }
-    
+
     if (orderbook_file_.is_open()) {
         orderbook_file_ << "timestamp,elapsed_ms,bids,asks\n";
         orderbook_file_ << "# Bids/Asks format: price:quantity:order_count;...\n";
+    }
+
+    if (ohlcv_file_.is_open()) {
+        ohlcv_file_ << "timestamp,timestamp_ms,interval_seconds,open,high,low,close,volume\n";
     }
 }
 
@@ -279,6 +339,7 @@ void HistoryRecorder::flush_buffers() {
     if (trade_price_file_.is_open()) trade_price_file_.flush();
     if (mid_price_file_.is_open()) mid_price_file_.flush();
     if (orderbook_file_.is_open()) orderbook_file_.flush();
+    if (ohlcv_file_.is_open()) ohlcv_file_.flush();
 }
 
 std::string HistoryRecorder::generate_filename(const std::string& symbol, const std::string& type) {

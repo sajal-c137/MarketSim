@@ -99,6 +99,7 @@ add_library(io_handler_lib STATIC
     "src/io_handler/zmq_subscriber.cpp"
     "src/io_handler/zmq_requester.cpp"
     "src/io_handler/zmq_replier.cpp"
+    "src/io_handler/ohlcv_builder.cpp"
 )
 
 # Exchange library (Matching Engine + Service)

@@ -42,12 +42,17 @@ public:
         const exchange::operations::OrderBook& order_book,
         int depth = 3
     );
-    
+
     // Log orderbook from protobuf (for monitor display)
     static void log_orderbook_pb(
         const marketsim::exchange::StatusResponse& status_response
     );
-    
+
+    // Log OHLCV candlestick bar
+    static void log_ohlcv(
+        const marketsim::exchange::OHLCV& bar
+    );
+
     // Print header on startup
     static void print_startup_header();
 };

@@ -294,7 +294,46 @@ void ExchangeLogger::log_orderbook_pb(
             table[i][5].format().font_align(FontAlign::center);
         }
     }
-    
+
+    std::cout << table << "\n\n";
+}
+
+void ExchangeLogger::log_ohlcv(const marketsim::exchange::OHLCV& bar) {
+    using namespace tabulate;
+
+    // Convert timestamp to readable format
+    int64_t timestamp_s = bar.timestamp() / 1000;
+    std::time_t time = static_cast<std::time_t>(timestamp_s);
+    char time_str[64];
+    std::strftime(time_str, sizeof(time_str), "%H:%M:%S", std::localtime(&time));
+
+    Table table;
+    table.add_row({"Time", "Open", "High", "Low", "Close", "Volume"});
+
+    std::ostringstream open_str, high_str, low_str, close_str, vol_str;
+    open_str << std::fixed << std::setprecision(2) << bar.open();
+    high_str << std::fixed << std::setprecision(2) << bar.high();
+    low_str << std::fixed << std::setprecision(2) << bar.low();
+    close_str << std::fixed << std::setprecision(2) << bar.close();
+    vol_str << std::fixed << std::setprecision(2) << bar.volume();
+
+    table.add_row({
+        time_str,
+        open_str.str(),
+        high_str.str(),
+        low_str.str(),
+        close_str.str(),
+        vol_str.str()
+    });
+
+    // Format header
+    for (size_t i = 0; i < 6; ++i) {
+        table[0][i].format()
+            .font_style({FontStyle::bold})
+            .font_align(FontAlign::center);
+    }
+
+    std::cout << "[OHLCV] " << bar.interval_seconds() << "s Bar - " << bar.symbol() << "\n";
     std::cout << table << "\n\n";
 }
 

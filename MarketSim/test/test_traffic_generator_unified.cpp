@@ -50,7 +50,7 @@ int main(int argc, char* argv[]) {
     config.base_price = 100.0;
     config.order_quantity = 1;
     config.step_interval_ms = 100;  // Generate price every 100ms
-    config.duration_seconds = 30.0; // Run for 30 seconds
+    config.duration_seconds = 300.0; // Run for 5 MINUTES (300 seconds)!
     config.drift = 5.0;             // 5% annual drift (for GBM)
     config.volatility = 3.0;        // 3% annual volatility (for GBM)
     config.price_rate = 0.1;        // $0.10 per second (for linear)
