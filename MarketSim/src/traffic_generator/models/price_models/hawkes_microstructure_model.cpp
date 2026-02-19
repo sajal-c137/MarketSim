@@ -1,6 +1,7 @@
 #include "hawkes_microstructure_model.h"
 #include <cmath>
 #include <algorithm>
+#include <iostream>
 
 namespace marketsim::traffic_generator::models::price_models {
 
@@ -22,12 +23,17 @@ HawkesMicrostructureModel::HawkesMicrostructureModel(
     , volume_mu_(params.volume_mu)
     , volume_sigma_(params.volume_sigma)
     , orders_per_event_(params.orders_per_event)
+    , enable_regime_switching_(params.enable_regime_switching)
+    , regime_switch_interval_(params.regime_switch_interval_seconds)
+    , last_regime_switch_time_(0.0)
+    , current_regime_(MarketRegime::SIDEWAYS_NORMAL)
+    , config_(params)
     , current_time_(0.0)
     , dt_(dt)
     , rng_(seed == 0 ? common::math::RandomGenerator() : common::math::RandomGenerator(seed))
     , next_order_id_(1)
 {
-    // Step 1: Initialize GBM price generator
+    // Initialize GBM price generator
     gbm_generator_ = std::make_unique<operations::GBMPriceGenerator>(
         initial_price,
         drift,
@@ -35,46 +41,40 @@ HawkesMicrostructureModel::HawkesMicrostructureModel(
         dt,
         seed
     );
+
+    // Initialize with a random regime if enabled
+    if (enable_regime_switching_) {
+        current_regime_ = select_regime();
+        apply_regime(current_regime_);
+    }
 }
 
 double HawkesMicrostructureModel::next_price() {
     // Clear orders from previous step
     current_orders_.clear();
-    
+
+    // Check for regime switch
+    check_regime_switch(current_time_);
+
     // Step 1: Advance price using GBM
-    // Formula: S(t+?t) = S(t) * exp((? - ?²/2)?t + ???t*Z)
     double new_price = gbm_generator_->next_price();
-    
-    // Step 2: Check if Hawkes event occurs during this time step
-    // Current intensity: ?(t) = ? + ? * ? exp(-?(t - t_j))
+
+    // Step 2: Check if Hawkes event occurs
     double lambda = compute_hawkes_intensity(current_time_);
-    
-    // Probability of event in time step dt: P(event) ? ? * dt
-    // For small dt, Poisson process: events ~ Poisson(? * dt)
-    // Simplified: Check if event occurs with probability ? * dt
-    double event_prob = lambda * dt_;
-    
-    // Cap probability at 1.0 (if intensity is very high)
-    event_prob = std::min(event_prob, 1.0);
-    
-    // Check if Hawkes event occurs
+    double event_prob = std::min(lambda * dt_, 1.0);
+
     bool event_occurred = dist_utils_.sample_bernoulli(event_prob, rng_);
-    
+
     if (event_occurred) {
-        // Record event time in history
         event_times_.push_back(current_time_);
-        
-        // Prune old events to keep history manageable
         prune_old_events(current_time_);
-        
-        // Step 3-6: Generate order cloud at this event
         generate_order_cloud(new_price, current_time_);
     }
-    
+
     // Update state
     previous_price_ = new_price;
     current_time_ += dt_;
-    
+
     return new_price;
 }
 
@@ -209,31 +209,112 @@ void HawkesMicrostructureModel::generate_order_cloud(double mid_price, double ev
         
         // Set event time
         order.time = event_time;
-        
+
         // Step 3: Determine order direction (BUY or SELL)
         order.is_buy = generate_order_direction(price_change);
-        
+
         // Step 4: Generate price offset from mid-price
         double offset = generate_price_offset();
-        
+
         // Set order price:
         //   - BUY orders: Below mid-price (bid side)
         //   - SELL orders: Above mid-price (ask side)
         if (order.is_buy) {
-            order.price = mid_price - offset;  // Bid: lower than mid
+            order.price = mid_price - offset;
         } else {
-            order.price = mid_price + offset;  // Ask: higher than mid
+            order.price = mid_price + offset;
         }
-        
+
         // Step 5: Generate order volume
         order.volume = generate_volume();
-        
+
         // Assign unique ID
         order.order_id = next_order_id_++;
-        
+
         // Add to current orders
         current_orders_.push_back(order);
     }
+}
+
+void HawkesMicrostructureModel::check_regime_switch(double elapsed_time) {
+    if (!enable_regime_switching_) {
+        return;
+    }
+
+    // Check if it's time to evaluate regime switch
+    if (elapsed_time - last_regime_switch_time_ >= regime_switch_interval_) {
+        // Draw random uniform [0,1]
+        double rand_val = rng_.uniform(0.0, 1.0);
+
+        // Select new regime based on probabilities
+        MarketRegime new_regime = MarketRegime::SIDEWAYS_NORMAL;
+        for (const auto& [regime, cum_prob] : config_.regime_probabilities) {
+            if (rand_val <= cum_prob) {
+                new_regime = regime;
+                break;
+            }
+        }
+
+        // Apply new regime if different
+        if (new_regime != current_regime_) {
+            std::cout << "[REGIME SWITCH] t=" << elapsed_time << "s: ";
+            switch (current_regime_) {
+                case MarketRegime::BULL_NORMAL: std::cout << "BULL_NORMAL"; break;
+                case MarketRegime::BEAR_NORMAL: std::cout << "BEAR_NORMAL"; break;
+                case MarketRegime::SIDEWAYS_NORMAL: std::cout << "SIDEWAYS"; break;
+                case MarketRegime::BULL_EXTREME: std::cout << "BULL_EXTREME"; break;
+                case MarketRegime::BEAR_EXTREME: std::cout << "BEAR_EXTREME"; break;
+            }
+            std::cout << " -> ";
+            switch (new_regime) {
+                case MarketRegime::BULL_NORMAL: std::cout << "BULL_NORMAL"; break;
+                case MarketRegime::BEAR_NORMAL: std::cout << "BEAR_NORMAL"; break;
+                case MarketRegime::SIDEWAYS_NORMAL: std::cout << "SIDEWAYS"; break;
+                case MarketRegime::BULL_EXTREME: std::cout << "BULL_EXTREME"; break;
+                case MarketRegime::BEAR_EXTREME: std::cout << "BEAR_EXTREME"; break;
+            }
+            std::cout << "\n";
+
+            current_regime_ = new_regime;
+            apply_regime(new_regime);
+        }
+
+        last_regime_switch_time_ = elapsed_time;
+    }
+}
+
+MarketRegime HawkesMicrostructureModel::select_regime() {
+    double rand_val = rng_.uniform(0.0, 1.0);
+
+    for (const auto& [regime, cum_prob] : config_.regime_probabilities) {
+        if (rand_val <= cum_prob) {
+            return regime;
+        }
+    }
+
+    return MarketRegime::SIDEWAYS_NORMAL;
+}
+
+void HawkesMicrostructureModel::apply_regime(MarketRegime regime) {
+    auto it = config_.regime_configs.find(regime);
+    if (it == config_.regime_configs.end()) {
+        return;
+    }
+
+    const RegimeParameters& params = it->second;
+
+    // Update Hawkes parameters
+    hawkes_mu_ = params.hawkes_mu;
+    hawkes_alpha_ = params.hawkes_alpha;
+    hawkes_beta_ = params.hawkes_beta;
+    momentum_k_ = params.momentum_k;
+    price_offset_L_ = params.price_offset_L;
+    price_offset_alpha_ = params.price_offset_alpha;
+    price_offset_max_ = params.price_offset_max;
+
+    // Update GBM parameters
+    gbm_generator_->set_drift(params.drift);
+    gbm_generator_->set_volatility(params.volatility);
 }
 
 } // namespace marketsim::traffic_generator::models::price_models

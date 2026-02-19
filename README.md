@@ -180,7 +180,7 @@ Open **4 separate terminals** and run:
 #### **Terminal 5: Python Analysis (After data collection)**
 ```bash
 pip install -r MarketSim/src/trader/analyze/requirements.txt
-python -m trader.analyze.main --symbol AAPL --output chart.html
+cd MarketSim/src/trader/analyze\npython main.py --symbol AAPL --output chart.html
 ```
 > Analyze collected OHLCV data and create interactive charts
 
@@ -309,3 +309,6 @@ This project is licensed under the MIT License
 **If you find this project interesting, please consider giving it a star!**
 
 </div>
+
+
+

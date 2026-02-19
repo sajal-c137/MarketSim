@@ -6,8 +6,11 @@ This demonstrates the basic usage of the trader.analyze package.
 
 import sys
 import os
-# Add MarketSim/src to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
+# Add MarketSim/src to path when running from this directory
+current_dir = os.path.dirname(os.path.abspath(__file__))
+src_dir = os.path.abspath(os.path.join(current_dir, '../..'))
+if src_dir not in sys.path:
+    sys.path.insert(0, src_dir)
 
 from trader.analyze import OHLCVReader, CandlestickPlotter
 
@@ -19,7 +22,7 @@ def main():
     
     # Initialize reader
     print("\n1. Reading OHLCV data...")
-    reader = OHLCVReader(data_directory='../../market_history')
+    reader = OHLCVReader(data_directory='market_history')
 
     try:
         # Read latest data

@@ -9,8 +9,11 @@ Run this script after collecting data from MarketSim:
 
 import sys
 import os
-# Add MarketSim/src to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
+# Add MarketSim/src to path when running from this directory
+current_dir = os.path.dirname(os.path.abspath(__file__))
+src_dir = os.path.abspath(os.path.join(current_dir, '../..'))
+if src_dir not in sys.path:
+    sys.path.insert(0, src_dir)
 
 from trader.analyze import OHLCVReader, CandlestickPlotter
 import argparse
@@ -21,8 +24,8 @@ def main():
     
     parser = argparse.ArgumentParser(description='Analyze and plot MarketSim OHLCV data')
     parser.add_argument('--symbol', type=str, default='AAPL', help='Trading symbol')
-    parser.add_argument('--data-dir', type=str, default='../../market_history',
-                       help='Path to market_history directory (relative to MarketSim/src/trader/analyze/)')
+    parser.add_argument('--data-dir', type=str, default='market_history',
+                       help='Path to market_history directory')
     parser.add_argument('--output', type=str, help='Output HTML file path')
     parser.add_argument('--static', action='store_true', help='Use static matplotlib plot')
     parser.add_argument('--ma', action='store_true', help='Show moving averages')

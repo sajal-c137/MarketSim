@@ -45,12 +45,22 @@ public:
      * @brief Get current price without advancing
      */
     double current_price() const { return current_price_; }
-    
+
     /**
      * @brief Reset to initial conditions
      */
     void reset();
-    
+
+    /**
+     * @brief Set drift parameter (for regime switching)
+     */
+    void set_drift(double drift) { drift_ = drift / 100.0; }
+
+    /**
+     * @brief Set volatility parameter (for regime switching)
+     */
+    void set_volatility(double volatility) { volatility_ = volatility / 100.0; }
+
     /**
      * @brief Generate N future prices (for testing/visualization)
      * @param n Number of prices to generate

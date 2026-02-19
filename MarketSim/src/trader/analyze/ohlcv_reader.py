@@ -15,12 +15,12 @@ import glob
 class OHLCVReader:
     """Reads OHLCV candlestick data from MarketSim CSV files"""
 
-    def __init__(self, data_directory: str = "../../market_history"):
+    def __init__(self, data_directory: str = "market_history"):
         """
         Initialize OHLCV reader
 
         Args:
-            data_directory: Path to market_history directory (relative to MarketSim/src/trader/analyze/)
+            data_directory: Path to market_history directory
         """
         self.data_directory = Path(data_directory)
         
