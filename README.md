@@ -1,8 +1,3 @@
-# **FOR RECRUITERS: This Project is WIP**
-
-## Expected Completion: **February 20th**
-
-
 # MarketSim
 
 > **A high-performance, distributed market simulation system demonstrating advanced C++20, concurrent programming, and quantitative finance concepts.**
